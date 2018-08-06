@@ -1,2 +1,3 @@
-# mosaic
-Heterogeneous composition of consensus engines to build a grid of computational cores
+# rust-mosaic
+
+Rust mosaic is a rust implementation of a mosaic node.
