@@ -3,3 +3,7 @@
 
 # IDEs
 tags
+
+# Rust
+/target
+**/*.rs.bk
