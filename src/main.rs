@@ -14,12 +14,12 @@
 
 #[macro_use]
 extern crate log;
-extern crate rust_mosaic;
+extern crate mosaic;
 extern crate simple_logger;
 
 use std::process;
 
-use rust_mosaic::Config;
+use mosaic::Config;
 
 /// Reads the configuration and runs the node with it.
 fn main() {
@@ -30,7 +30,7 @@ fn main() {
         process::exit(1);
     });
 
-    if let Err(e) = rust_mosaic::run(config) {
+    if let Err(e) = mosaic::run(config) {
         error!("Application error: {}", e);
         process::exit(1);
     }
