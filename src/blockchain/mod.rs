@@ -12,26 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[macro_use]
-extern crate log;
-extern crate rust_mosaic;
-extern crate simple_logger;
+//! This module provides an API to interact with blockchains, e.g. Ethereum.
 
-use std::process;
-
-use rust_mosaic::Config;
-
-/// Reads the configuration and runs the node with it.
-fn main() {
-    simple_logger::init().unwrap();
-
-    let config = Config::new().unwrap_or_else(|err| {
-        error!("Could not create config: {}", err);
-        process::exit(1);
-    });
-
-    if let Err(e) = rust_mosaic::run(config) {
-        error!("Application error: {}", e);
-        process::exit(1);
-    }
+#[cfg(test)]
+mod test {
+    use super::*;
 }
