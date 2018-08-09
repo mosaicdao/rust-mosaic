@@ -14,7 +14,19 @@
 
 //! This module provides an API to interact with blockchains, e.g. Ethereum.
 
-#[cfg(test)]
-mod test {
-    use super::*;
+mod ethereum;
+
+/// The Blockchain represents all shared functions of a blockchain.
+pub trait Blockchain {
+    /// Returns a vector of all accounts in hex format.
+    fn get_accounts(&self) -> Vec<String>;
 }
+
+/// Creates a new ethereum blockchain.
+pub fn new_ethereum(address: String) -> Box<Blockchain> {
+    let ethereum = ethereum::Ethereum::new(address);
+    Box::new(ethereum)
+}
+
+#[cfg(test)]
+mod test {}

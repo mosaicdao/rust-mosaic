@@ -17,13 +17,18 @@ extern crate log;
 extern crate rust_mosaic;
 extern crate simple_logger;
 
+use log::Level;
+use rust_mosaic::Config;
+use std::env;
 use std::process;
 
-use rust_mosaic::Config;
+const ENV_LOG_LEVEL: &str = "MOSAIC_LOG_LEVEL";
+const DEFAULT_LOG_LEVEL: Level = Level::Info;
 
 /// Reads the configuration and runs the node with it.
 fn main() {
-    simple_logger::init().unwrap();
+    let log_level = read_log_level();
+    simple_logger::init_with_level(log_level).unwrap();
 
     let config = Config::new().unwrap_or_else(|err| {
         error!("Could not create config: {}", err);
@@ -33,5 +38,25 @@ fn main() {
     if let Err(e) = rust_mosaic::run(config) {
         error!("Application error: {}", e);
         process::exit(1);
+    }
+}
+
+/// Reads the log level from the environment. If it is not set it falls back to
+/// the default log level.
+/// It panics if a log level should be set that is not known.
+fn read_log_level() -> Level {
+    let log_level = env::var(ENV_LOG_LEVEL);
+    match log_level {
+        Ok(level) => match level.as_ref() {
+            "TRACE" => Level::Trace,
+            "DEBUG" => Level::Debug,
+            "INFO" => Level::Info,
+            "WARN" => Level::Warn,
+            _ => panic!(
+                "Unknown log level set. Allowed are: TRACE, DEBUG, INFO, WARN. Found: {}",
+                level
+            ),
+        },
+        Err(_) => DEFAULT_LOG_LEVEL,
     }
 }
