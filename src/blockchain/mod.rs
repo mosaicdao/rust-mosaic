@@ -14,20 +14,38 @@
 
 //! This module provides an API to interact with blockchains, e.g. Ethereum.
 
-mod ethereum;
+use self::types::account::Account;
 
-/// The Blockchain represents all shared functions of a blockchain.
-pub trait Blockchain {
-    /// Returns a vector of all accounts in hex format.
-    // TODO: create a type for an account
-    fn get_accounts(&self) -> Vec<String>;
+pub mod ethereum;
+pub mod types;
+
+/// Kind only represents what kind a blockchain is without any implementation.
+pub enum Kind {
+    Eth,
 }
 
-/// Creates a new ethereum blockchain connection.
-pub fn connect_to_ethereum(address: String) -> Box<Blockchain> {
-    let ethereum = ethereum::Ethereum::new(address);
-    Box::new(ethereum)
+/// A blockchain is a connection to a blockchain.
+pub enum Blockchain {
+    Eth(ethereum::Ethereum),
 }
 
-#[cfg(test)]
-mod test {}
+impl Blockchain {
+    /// Creates a new blockchain of the given kind pointing to the given address.
+    ///
+    /// # Arguments
+    ///
+    /// * `kind` - The kind that the blockchain shall be.
+    /// * `address` - The address of a node of the blockchain.
+    pub fn new(kind: Kind, address: String) -> Self {
+        match kind {
+            Kind::Eth => ethereum::Ethereum::new(address),
+        }
+    }
+
+    /// Returns all accounts on this blockchain.
+    pub fn get_accounts(&self) -> Vec<Account> {
+        match self {
+            Blockchain::Eth(ethereum) => ethereum.get_accounts(),
+        }
+    }
+}
