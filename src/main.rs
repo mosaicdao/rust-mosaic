@@ -32,10 +32,7 @@ fn main() {
     let log_level = read_log_level();
     simple_logger::init_with_level(log_level).unwrap();
 
-    let config = Config::new().unwrap_or_else(|err| {
-        error!("Could not create config: {}", err);
-        process::exit(1);
-    });
+    let config = Config::new();
 
     if let Err(e) = mosaic::run(config) {
         error!("Application error: {}", e);

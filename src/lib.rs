@@ -14,14 +14,15 @@
 
 //! This crate implements a mosaic node.
 //! Mosaic nodes run to:
-//!  - validate utility systems
-//!  - commit a value chain onto a utility chain
-//!  - commit a utility chain onto a value chain
+//!  - validate auxiliary systems
+//!  - commit an origin chain onto an auxiliary chain
+//!  - commit an auxiliary chain onto an origin chain
 
 #[macro_use]
 extern crate log;
 extern crate web3;
 
+use blockchain::{Blockchain, Kind};
 use std::env;
 use std::error::Error;
 
@@ -38,13 +39,13 @@ pub struct Config {
     /// Address of the origin chain, e.g. "127.0.0.1:8485"
     origin_address: String,
     /// Address of the auxiliary chain, e.g. "127.0.0.1:8486"
-    auxiliary_address: String,
+    _auxiliary_address: String,
 }
 
 impl Config {
     /// Reads the configuration from environment variables and creates a new Config from them. In
     /// case an environment variable is not set, a default fallback will be used.
-    pub fn new() -> Result<Config, &'static str> {
+    pub fn new() -> Config {
         // Read origin address from env and set it or fallback to default
         let origin_address = env::var(ENV_ORIGIN_ADDRESS);
         let origin_address = match origin_address {
@@ -54,6 +55,7 @@ impl Config {
                 DEFAULT_ORIGIN_ADDRESS.to_string()
             }
         };
+        info!("Using origin chain address: {}", origin_address);
 
         // Read auxiliary address from env and set it or fallback to default
         let auxiliary_address = env::var(ENV_AUXILIARY_ADDRESS);
@@ -64,26 +66,25 @@ impl Config {
                 DEFAULT_AUXILIARY_ADDRESS.to_string()
             }
         };
-
-        info!("Using origin chain address: {}", origin_address);
         info!("Using auxiliary chain address: {}", auxiliary_address);
 
-        Ok(Config {
+        Config {
             origin_address,
-            auxiliary_address,
-        })
+            _auxiliary_address: auxiliary_address,
+        }
     }
 }
 
 /// Runs a mosaic node with the given configuration.
 /// Prints all accounts of the origin blockchain to std out.
 pub fn run(config: Config) -> Result<(), Box<Error>> {
-    let ethereum = blockchain::connect_to_ethereum(config.origin_address);
-    let accounts = ethereum.get_accounts();
+    let blockchain = Blockchain::new(Kind::Eth, config.origin_address);
+
+    let accounts = blockchain.get_accounts();
 
     println!("Accounts:");
     for account in accounts {
-        println!("{}", account);
+        println!("0x{:x}", account)
     }
 
     Ok(())
@@ -95,19 +96,25 @@ mod test {
 
     #[test]
     fn the_config_reads_the_environment_variables() {
-        let config = Config::new().unwrap();
+        let config = Config::new();
         assert_eq!(config.origin_address, DEFAULT_ORIGIN_ADDRESS.to_string());
-        assert_eq!(config.auxiliary_address, DEFAULT_AUXILIARY_ADDRESS.to_string());
+        assert_eq!(
+            config._auxiliary_address,
+            DEFAULT_AUXILIARY_ADDRESS.to_string()
+        );
 
         env::set_var(ENV_ORIGIN_ADDRESS, "10.0.0.1");
-        let config = Config::new().unwrap();
+        let config = Config::new();
         assert_eq!(config.origin_address, "10.0.0.1");
-        assert_eq!(config.auxiliary_address, DEFAULT_AUXILIARY_ADDRESS.to_string());
+        assert_eq!(
+            config._auxiliary_address,
+            DEFAULT_AUXILIARY_ADDRESS.to_string()
+        );
 
         env::set_var(ENV_AUXILIARY_ADDRESS, "10.0.0.2");
-        let config = Config::new().unwrap();
+        let config = Config::new();
         assert_eq!(config.origin_address, "10.0.0.1");
-        assert_eq!(config.auxiliary_address, "10.0.0.2");
+        assert_eq!(config._auxiliary_address, "10.0.0.2");
 
         env::remove_var(ENV_ORIGIN_ADDRESS);
         env::remove_var(ENV_AUXILIARY_ADDRESS);
