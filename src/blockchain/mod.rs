@@ -19,12 +19,12 @@ mod ethereum;
 /// The Blockchain represents all shared functions of a blockchain.
 pub trait Blockchain {
     /// Returns a vector of all accounts in hex format.
-    // TODO create a type for an account
+    // TODO: create a type for an account
     fn get_accounts(&self) -> Vec<String>;
 }
 
-/// Creates a new ethereum blockchain.
-pub fn new_ethereum(address: String) -> Box<Blockchain> {
+/// Creates a new ethereum blockchain connection.
+pub fn connect_to_ethereum(address: String) -> Box<Blockchain> {
     let ethereum = ethereum::Ethereum::new(address);
     Box::new(ethereum)
 }
