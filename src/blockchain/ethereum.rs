@@ -19,18 +19,27 @@
 extern crate web3;
 
 use web3::futures::Future;
+use web3::transports::EventLoopHandle;
+use web3::Web3;
 
 use super::Blockchain;
 
 /// This struct implements the Blockchain trait.
 pub struct Ethereum {
-    address: String,
+    web3: Web3<web3::transports::Http>,
+    _eloop: EventLoopHandle,
 }
 
 impl Ethereum {
     /// Creates a new instance of Ethereum pointing to the given address.
     pub fn new(address: String) -> Self {
-        Ethereum { address }
+        let (eloop, http) = web3::transports::Http::new(address.as_str()).unwrap();
+        let web3 = web3::Web3::new(http);
+        
+        Ethereum {
+            web3,
+            _eloop: eloop,
+        }
     }
 }
 
@@ -38,9 +47,7 @@ impl Blockchain for Ethereum {
     /// Uses web3 to retrieve the accounts.
     /// Converts them to hex notation and returns all accounts in a vector.
     fn get_accounts(&self) -> Vec<String> {
-        let (_eloop, http) = web3::transports::Http::new(self.address.as_str()).unwrap();
-        let web3 = web3::Web3::new(http);
-        let accounts = web3.eth().accounts().wait().unwrap();
+        let accounts = self.web3.eth().accounts().wait().unwrap();
 
         let mut v = Vec::new();
         for account in accounts {
