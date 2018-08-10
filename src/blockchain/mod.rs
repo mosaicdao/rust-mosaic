@@ -16,7 +16,7 @@
 
 use self::types::account::Account;
 
-pub mod ethereum;
+mod ethereum;
 pub mod types;
 
 /// Kind only represents what kind a blockchain is without any implementation.
