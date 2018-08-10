@@ -19,6 +19,7 @@ mod ethereum;
 /// The Blockchain represents all shared functions of a blockchain.
 pub trait Blockchain {
     /// Returns a vector of all accounts in hex format.
+    // TODO create a type for an account
     fn get_accounts(&self) -> Vec<String>;
 }
 
