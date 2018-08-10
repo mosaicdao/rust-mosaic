@@ -28,58 +28,58 @@ use std::error::Error;
 mod blockchain;
 
 // Environment variables and their defaults
-const ENV_SOURCE_ADDRESS: &str = "MOSAIC_SOURCE_ADDRESS";
-const ENV_TARGET_ADDRESS: &str = "MOSAIC_TARGET_ADDRESS";
-const DEFAULT_SOURCE_ADDRESS: &str = "http://127.0.0.1:8545";
-const DEFAULT_TARGET_ADDRESS: &str = "http://127.0.0.1:8546";
+const ENV_ORIGIN_ADDRESS: &str = "MOSAIC_ORIGIN_ADDRESS";
+const ENV_AUXILIARY_ADDRESS: &str = "MOSAIC_AUXILIARY_ADDRESS";
+const DEFAULT_ORIGIN_ADDRESS: &str = "http://127.0.0.1:8545";
+const DEFAULT_AUXILIARY_ADDRESS: &str = "http://127.0.0.1:8546";
 
 /// Global config for running a mosaic node.
 pub struct Config {
-    /// Address of the source chain, e.g. "127.0.0.1:8485"
-    source_address: String,
-    /// Address of the target chain, e.g. "127.0.0.1:8486"
-    target_address: String,
+    /// Address of the origin chain, e.g. "127.0.0.1:8485"
+    origin_address: String,
+    /// Address of the auxiliary chain, e.g. "127.0.0.1:8486"
+    auxiliary_address: String,
 }
 
 impl Config {
     /// Reads the configuration from environment variables and creates a new Config from them. In
     /// case an environment variable is not set, a default fallback will be used.
     pub fn new() -> Result<Config, &'static str> {
-        // Read source address from env and set it or fallback to default
-        let source_address = env::var(ENV_SOURCE_ADDRESS);
-        let source_address = match source_address {
+        // Read origin address from env and set it or fallback to default
+        let origin_address = env::var(ENV_ORIGIN_ADDRESS);
+        let origin_address = match origin_address {
             Ok(address) => address,
             Err(_) => {
-                info!("No source chain address given, falling back to default.");
-                DEFAULT_SOURCE_ADDRESS.to_string()
+                info!("No origin chain address given, falling back to default.");
+                DEFAULT_ORIGIN_ADDRESS.to_string()
             }
         };
 
-        // Read target address from env and set it or fallback to default
-        let target_address = env::var(ENV_TARGET_ADDRESS);
-        let target_address = match target_address {
+        // Read auxiliary address from env and set it or fallback to default
+        let auxiliary_address = env::var(ENV_AUXILIARY_ADDRESS);
+        let auxiliary_address = match auxiliary_address {
             Ok(address) => address,
             Err(_) => {
-                info!("No target chain address given, falling back to default.");
-                DEFAULT_TARGET_ADDRESS.to_string()
+                info!("No auxiliary chain address given, falling back to default.");
+                DEFAULT_AUXILIARY_ADDRESS.to_string()
             }
         };
 
-        info!("Using source chain address: {}", source_address);
-        info!("Using target chain address: {}", target_address);
+        info!("Using origin chain address: {}", origin_address);
+        info!("Using auxiliary chain address: {}", auxiliary_address);
 
         Ok(Config {
-            source_address,
-            target_address,
+            origin_address,
+            auxiliary_address,
         })
     }
 }
 
 /// Runs a mosaic node with the given configuration.
-/// Prints all accounts of the source blockchain to std out.
+/// Prints all accounts of the origin blockchain to std out.
 pub fn run(config: Config) -> Result<(), Box<Error>> {
-    // TODO origin not source
-    let ethereum = blockchain::new_ethereum(config.source_address);
+    // TODO: rename method
+    let ethereum = blockchain::new_ethereum(config.origin_address);
     let accounts = ethereum.get_accounts();
 
     println!("Accounts:");
@@ -97,20 +97,20 @@ mod test {
     #[test]
     fn the_config_reads_the_environment_variables() {
         let config = Config::new().unwrap();
-        assert_eq!(config.source_address, DEFAULT_SOURCE_ADDRESS.to_string());
-        assert_eq!(config.target_address, DEFAULT_TARGET_ADDRESS.to_string());
+        assert_eq!(config.origin_address, DEFAULT_ORIGIN_ADDRESS.to_string());
+        assert_eq!(config.auxiliary_address, DEFAULT_AUXILIARY_ADDRESS.to_string());
 
-        env::set_var(ENV_SOURCE_ADDRESS, "10.0.0.1");
+        env::set_var(ENV_ORIGIN_ADDRESS, "10.0.0.1");
         let config = Config::new().unwrap();
-        assert_eq!(config.source_address, "10.0.0.1");
-        assert_eq!(config.target_address, DEFAULT_TARGET_ADDRESS.to_string());
+        assert_eq!(config.origin_address, "10.0.0.1");
+        assert_eq!(config.auxiliary_address, DEFAULT_AUXILIARY_ADDRESS.to_string());
 
-        env::set_var(ENV_TARGET_ADDRESS, "10.0.0.2");
+        env::set_var(ENV_AUXILIARY_ADDRESS, "10.0.0.2");
         let config = Config::new().unwrap();
-        assert_eq!(config.source_address, "10.0.0.1");
-        assert_eq!(config.target_address, "10.0.0.2");
+        assert_eq!(config.origin_address, "10.0.0.1");
+        assert_eq!(config.auxiliary_address, "10.0.0.2");
 
-        env::remove_var(ENV_SOURCE_ADDRESS);
-        env::remove_var(ENV_TARGET_ADDRESS);
+        env::remove_var(ENV_ORIGIN_ADDRESS);
+        env::remove_var(ENV_AUXILIARY_ADDRESS);
     }
 }
