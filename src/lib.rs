@@ -78,8 +78,7 @@ impl Config {
 /// Runs a mosaic node with the given configuration.
 /// Prints all accounts of the origin blockchain to std out.
 pub fn run(config: Config) -> Result<(), Box<Error>> {
-    // TODO: rename method
-    let ethereum = blockchain::new_ethereum(config.origin_address);
+    let ethereum = blockchain::connect_to_ethereum(config.origin_address);
     let accounts = ethereum.get_accounts();
 
     println!("Accounts:");
