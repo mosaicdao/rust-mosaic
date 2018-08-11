@@ -90,19 +90,28 @@ mod test {
     fn test_h160_to_account() {
         let mut bytes = [0u8; 20];
         assert_eq!(
-            "0000000000000000000000000000000000000000".parse::<H160>().unwrap().as_account(),
+            "0000000000000000000000000000000000000000"
+                .parse::<H160>()
+                .unwrap()
+                .as_account(),
             Account::new(bytes)
         );
 
         bytes[19] = 10u8;
         assert_eq!(
-            "000000000000000000000000000000000000000a".parse::<H160>().unwrap().as_account(),
+            "000000000000000000000000000000000000000a"
+                .parse::<H160>()
+                .unwrap()
+                .as_account(),
             Account::new(bytes)
         );
 
         bytes[0] = 1u8;
         assert_eq!(
-            "010000000000000000000000000000000000000a".parse::<H160>().unwrap().as_account(),
+            "010000000000000000000000000000000000000a"
+                .parse::<H160>()
+                .unwrap()
+                .as_account(),
             Account::new(bytes)
         );
     }

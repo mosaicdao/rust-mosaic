@@ -43,11 +43,7 @@ impl LowerHex for Account {
     /// Writes the bytes as hex with leading zeros to the given Formatter.
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         for byte in self.0.iter() {
-            // Zero padding on the left
-            if byte < &16u8 {
-                write!(f, "{}", 0)?;
-            }
-            write!(f, "{:x}", byte)?;
+            write!(f, "{:02x}", byte)?;
         }
 
         Ok(())
@@ -70,4 +66,33 @@ pub trait AsAccount {
 
 pub trait FromAccount {
     fn from_account(account: Account) -> Self;
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn account_to_lower_hex() {
+        let mut bytes = [0u8; 20];
+        let account = Account::new(bytes);
+        assert_eq!(
+            format!("{:x}", account),
+            "0000000000000000000000000000000000000000"
+        );
+
+        bytes[0] = 1u8;
+        let account = Account::new(bytes);
+        assert_eq!(
+            format!("{:x}", account),
+            "0100000000000000000000000000000000000000"
+        );
+
+        bytes[19] = 18u8;
+        let account = Account::new(bytes);
+        assert_eq!(
+            format!("{:x}", account),
+            "0100000000000000000000000000000000000012"
+        );
+    }
 }
