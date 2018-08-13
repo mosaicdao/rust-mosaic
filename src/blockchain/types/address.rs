@@ -12,34 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! This module implements the Account struct and its methods.
+//! This module implements the Address struct and its methods.
 
 use std::cmp::PartialEq;
 use std::fmt::{Debug, Error, Formatter, LowerHex};
 
-/// An Account is represented by a 20-bytes address.
-pub struct Account([u8; 20]);
+/// An Address is represented by a 20-bytes address.
+pub struct Address([u8; 20]);
 
-impl Account {
-    /// Creates an account with the address given as 20 bytes.
+impl Address {
+    /// Creates an address with the address given as 20 bytes.
     pub fn new(bytes: [u8; 20]) -> Self {
-        Account(bytes)
+        Address(bytes)
     }
 
-    /// Returns the bytes representation of this account.
+    /// Returns the bytes representation of this address.
     pub fn bytes(&self) -> [u8; 20] {
         self.0
     }
 }
 
-impl PartialEq for Account {
-    /// Two accounts are equal if their byte representations are equal.
-    fn eq(&self, other: &Account) -> bool {
+impl PartialEq for Address {
+    /// Two addresss are equal if their byte representations are equal.
+    fn eq(&self, other: &Address) -> bool {
         self.bytes() == other.bytes()
     }
 }
 
-impl LowerHex for Account {
+impl LowerHex for Address {
     /// Writes the bytes as hex with leading zeros to the given Formatter.
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         for byte in self.0.iter() {
@@ -50,7 +50,7 @@ impl LowerHex for Account {
     }
 }
 
-impl Debug for Account {
+impl Debug for Address {
     /// Debug format is lower hex.
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         write!(f, "{:x}", self)?;
@@ -59,13 +59,13 @@ impl Debug for Account {
     }
 }
 
-// Converting other types to and from Accounts
-pub trait AsAccount {
-    fn as_account(&self) -> Account;
+// Converting other types to and from Addresss
+pub trait AsAddress {
+    fn as_address(&self) -> Address;
 }
 
-pub trait FromAccount {
-    fn from_account(account: Account) -> Self;
+pub trait FromAddress {
+    fn from_address(address: Address) -> Self;
 }
 
 #[cfg(test)]
@@ -73,25 +73,25 @@ mod test {
     use super::*;
 
     #[test]
-    fn account_to_lower_hex() {
+    fn address_to_lower_hex() {
         let mut bytes = [0u8; 20];
-        let account = Account::new(bytes);
+        let address = Address::new(bytes);
         assert_eq!(
-            format!("{:x}", account),
+            format!("{:x}", address),
             "0000000000000000000000000000000000000000"
         );
 
         bytes[0] = 1u8;
-        let account = Account::new(bytes);
+        let address = Address::new(bytes);
         assert_eq!(
-            format!("{:x}", account),
+            format!("{:x}", address),
             "0100000000000000000000000000000000000000"
         );
 
         bytes[19] = 18u8;
-        let account = Account::new(bytes);
+        let address = Address::new(bytes);
         assert_eq!(
-            format!("{:x}", account),
+            format!("{:x}", address),
             "0100000000000000000000000000000000000012"
         );
     }

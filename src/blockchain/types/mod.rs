@@ -14,4 +14,4 @@
 
 //! All the blockchain types that we interact with.
 
-pub mod account;
+pub mod address;

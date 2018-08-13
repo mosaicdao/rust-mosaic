@@ -14,7 +14,7 @@
 
 //! This module provides an API to interact with blockchains, e.g. Ethereum.
 
-use self::types::account::Account;
+use self::types::address::Address;
 
 mod ethereum;
 pub mod types;
@@ -43,7 +43,7 @@ impl Blockchain {
     }
 
     /// Returns all accounts on this blockchain.
-    pub fn get_accounts(&self) -> Vec<Account> {
+    pub fn get_accounts(&self) -> Vec<Address> {
         match self {
             Blockchain::Eth(ethereum) => ethereum.get_accounts(),
         }
