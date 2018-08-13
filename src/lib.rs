@@ -32,7 +32,7 @@ pub mod config;
 /// Runs a mosaic node with the given configuration.
 /// Prints all accounts of the origin blockchain to std out.
 pub fn run(config: Config) -> Result<(), Box<Error>> {
-    let blockchain = Blockchain::new(Kind::Eth, config.origin_address().to_string());
+    let blockchain = Blockchain::new(Kind::Eth, config.origin_endpoint().to_owned());
 
     let accounts = blockchain.get_accounts();
 

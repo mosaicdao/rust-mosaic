@@ -14,52 +14,85 @@
 
 //! This module handles all configuration of this library.
 
+use blockchain::types::address::Address;
 use std::env;
 
 // Environment variables and their defaults
-const ENV_ORIGIN_ADDRESS: &str = "MOSAIC_ORIGIN_ADDRESS";
-const ENV_AUXILIARY_ADDRESS: &str = "MOSAIC_AUXILIARY_ADDRESS";
-const DEFAULT_ORIGIN_ADDRESS: &str = "http://127.0.0.1:8545";
-const DEFAULT_AUXILIARY_ADDRESS: &str = "http://127.0.0.1:8546";
+const ENV_ORIGIN_ENDPOINT: &str = "MOSAIC_ORIGIN_ADDRESS";
+const DEFAULT_ORIGIN_ENDPOINT: &str = "http://127.0.0.1:8545";
+const ENV_AUXILIARY_ENDPOINT: &str = "MOSAIC_AUXILIARY_ADDRESS";
+const DEFAULT_AUXILIARY_ENDPOINT: &str = "http://127.0.0.1:8546";
+const ENV_ORIGIN_CORE_ADDRESS: &str = "MOSAIC_ORIGIN_CORE_ADDRESS";
 
 /// Global config for running a mosaic node.
 pub struct Config {
     /// Address of the origin chain, e.g. "127.0.0.1:8485"
-    origin_address: String,
+    origin_endpoint: String,
     /// Address of the auxiliary chain, e.g. "127.0.0.1:8486"
-    _auxiliary_address: String,
+    _auxiliary_endpoint: String,
+    /// The address of a core address on origin.
+    /// It is optional as it may not be needed depending on the mode that the node is run in.
+    _origin_core_address: Option<Address>,
 }
 
 impl Config {
     /// Reads the configuration from environment variables and creates a new Config from them. In
     /// case an environment variable is not set, a default fallback will be used.
     pub fn new() -> Config {
-        let origin_address = Self::read_environment_variable(ENV_ORIGIN_ADDRESS, DEFAULT_ORIGIN_ADDRESS);
-        let auxiliary_address = Self::read_environment_variable(ENV_AUXILIARY_ADDRESS, DEFAULT_AUXILIARY_ADDRESS);
+        let origin_endpoint =
+            Self::read_environment_variable(ENV_ORIGIN_ENDPOINT, Some(DEFAULT_ORIGIN_ENDPOINT));
+        let auxiliary_endpoint = Self::read_environment_variable(
+            ENV_AUXILIARY_ENDPOINT,
+            Some(DEFAULT_AUXILIARY_ENDPOINT),
+        );
+
+        let origin_core_address = Self::read_environment_variable(ENV_ORIGIN_CORE_ADDRESS, None);
+        let origin_core_address = match origin_core_address {
+            // TODO: Can this be done in a  better way than juggling a ton of Result/Option?
+            Some(origin_core_address) => Some(Address::from_string(&origin_core_address).unwrap()),
+            None => None,
+        };
 
         Config {
-            origin_address,
-            _auxiliary_address: auxiliary_address,
+            origin_endpoint: match origin_endpoint {
+                Some(origin_endpoint) => origin_endpoint,
+                None => panic!("An origin endpoint must be set!"),
+            },
+            _auxiliary_endpoint: match auxiliary_endpoint {
+                Some(auxiliary_endpoint) => auxiliary_endpoint,
+                None => panic!("An auxiliary endpoint must be set!"),
+            },
+            _origin_core_address: origin_core_address,
         }
     }
 
-    fn read_environment_variable(name: &str, default_value: &str) -> String {
+    fn read_environment_variable(name: &str, default_value: Option<&str>) -> Option<String> {
         let value = env::var(name);
         let value = match value {
-            Ok(value) => value,
-            Err(_) => {
-                info!("No {} found, falling back to default.", name);
-                default_value.to_string()
-            }
+            Ok(value) => Some(value),
+            Err(_) => match default_value {
+                Some(default_value) => {
+                    info!("No {} found, falling back to default.", name);
+                    Some(default_value.to_owned())
+                }
+                None => None,
+            },
         };
 
-        info!("Using {}: {}", name, value);
+        info!(
+            "Using {}: {}",
+            name,
+            match &value {
+                Some(value) => value,
+                None => "<not set>",
+            }
+        );
 
         value
     }
 
-    pub fn origin_address(&self) -> &String {
-        &self.origin_address
+    pub fn origin_endpoint(&self) -> &String {
+        &self.origin_endpoint
     }
 }
 
@@ -70,26 +103,26 @@ mod test {
     #[test]
     fn the_config_reads_the_environment_variables() {
         let config = Config::new();
-        assert_eq!(config.origin_address, DEFAULT_ORIGIN_ADDRESS.to_string());
+        assert_eq!(config.origin_endpoint, DEFAULT_ORIGIN_ENDPOINT.to_owned());
         assert_eq!(
-            config._auxiliary_address,
-            DEFAULT_AUXILIARY_ADDRESS.to_string()
+            config._auxiliary_endpoint,
+            DEFAULT_AUXILIARY_ENDPOINT.to_owned()
         );
 
-        env::set_var(ENV_ORIGIN_ADDRESS, "10.0.0.1");
+        env::set_var(ENV_ORIGIN_ENDPOINT, "10.0.0.1");
         let config = Config::new();
-        assert_eq!(config.origin_address, "10.0.0.1");
+        assert_eq!(config.origin_endpoint, "10.0.0.1");
         assert_eq!(
-            config._auxiliary_address,
-            DEFAULT_AUXILIARY_ADDRESS.to_string()
+            config._auxiliary_endpoint,
+            DEFAULT_AUXILIARY_ENDPOINT.to_owned()
         );
 
-        env::set_var(ENV_AUXILIARY_ADDRESS, "10.0.0.2");
+        env::set_var(ENV_AUXILIARY_ENDPOINT, "10.0.0.2");
         let config = Config::new();
-        assert_eq!(config.origin_address, "10.0.0.1");
-        assert_eq!(config._auxiliary_address, "10.0.0.2");
+        assert_eq!(config.origin_endpoint, "10.0.0.1");
+        assert_eq!(config._auxiliary_endpoint, "10.0.0.2");
 
-        env::remove_var(ENV_ORIGIN_ADDRESS);
-        env::remove_var(ENV_AUXILIARY_ADDRESS);
+        env::remove_var(ENV_ORIGIN_ENDPOINT);
+        env::remove_var(ENV_AUXILIARY_ENDPOINT);
     }
 }

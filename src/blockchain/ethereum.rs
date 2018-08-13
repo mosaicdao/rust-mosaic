@@ -68,7 +68,7 @@ impl AsAddress for H160 {
         let mut bytes: [u8; 20] = [b'0'; 20];
         self.copy_to(&mut bytes);
 
-        Address::new(bytes)
+        Address::from_bytes(bytes)
     }
 }
 
@@ -92,7 +92,7 @@ mod test {
                 .parse::<H160>()
                 .unwrap()
                 .as_address(),
-            Address::new(bytes)
+            Address::from_bytes(bytes)
         );
 
         bytes[19] = 10u8;
@@ -101,7 +101,7 @@ mod test {
                 .parse::<H160>()
                 .unwrap()
                 .as_address(),
-            Address::new(bytes)
+            Address::from_bytes(bytes)
         );
 
         bytes[0] = 1u8;
@@ -110,7 +110,7 @@ mod test {
                 .parse::<H160>()
                 .unwrap()
                 .as_address(),
-            Address::new(bytes)
+            Address::from_bytes(bytes)
         );
     }
 
@@ -118,19 +118,19 @@ mod test {
     fn test_h160_from_address() {
         let mut bytes = [0u8; 20];
         assert_eq!(
-            format!("{:#?}", H160::from_address(Address::new(bytes))),
+            format!("{:#?}", H160::from_address(Address::from_bytes(bytes))),
             "0x0000000000000000000000000000000000000000"
         );
 
         bytes[19] = 10u8;
         assert_eq!(
-            format!("{:#?}", H160::from_address(Address::new(bytes))),
+            format!("{:#?}", H160::from_address(Address::from_bytes(bytes))),
             "0x000000000000000000000000000000000000000a"
         );
 
         bytes[0] = 1u8;
         assert_eq!(
-            format!("{:#?}", H160::from_address(Address::new(bytes))),
+            format!("{:#?}", H160::from_address(Address::from_bytes(bytes))),
             "0x010000000000000000000000000000000000000a"
         );
     }
