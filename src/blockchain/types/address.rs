@@ -34,8 +34,8 @@ impl Address {
     ///
     /// * `string` - A Strting in hex format that represents 20 bytes.
     ///              Must be exactly 40 characters long. Any leading `0x` will be removed.
-    pub fn from_string(string: &String) -> Result<Self, Error> {
-        let mut cleaned = &string.clone()[..];
+    pub fn from_string(string: &str) -> Result<Self, Error> {
+        let mut cleaned = &string.to_string()[..];
         cleaned = cleaned.trim();
 
         // cut leading "0x" if present
@@ -75,7 +75,7 @@ impl Address {
             if cleaned.len() < 2 {
                 break;
             }
-            index = index + 1;
+            index += 1;
         }
 
         Ok(Address(bytes))
@@ -97,7 +97,7 @@ impl PartialEq for Address {
 impl LowerHex for Address {
     /// Writes the bytes as hex with leading zeros to the given Formatter.
     fn fmt(&self, f: &mut Formatter) -> Result<(), fmt::Error> {
-        for byte in self.0.iter() {
+        for byte in &self.0 {
             write!(f, "{:02x}", byte)?;
         }
 

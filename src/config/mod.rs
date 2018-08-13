@@ -25,6 +25,7 @@ const DEFAULT_AUXILIARY_ENDPOINT: &str = "http://127.0.0.1:8546";
 const ENV_ORIGIN_CORE_ADDRESS: &str = "MOSAIC_ORIGIN_CORE_ADDRESS";
 
 /// Global config for running a mosaic node.
+#[derive(Default)]
 pub struct Config {
     /// Address of the origin chain, e.g. "127.0.0.1:8485"
     origin_endpoint: String,

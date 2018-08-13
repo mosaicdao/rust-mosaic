@@ -22,7 +22,6 @@ use web3::types::H160;
 use web3::Web3;
 
 use super::types::address::{Address, AsAddress, FromAddress};
-use super::Blockchain;
 
 /// This struct stores a connection to an Ethereum node.
 pub struct Ethereum {
@@ -36,14 +35,14 @@ impl Ethereum {
     /// # Arguments
     ///
     /// * `address` - The address of an ethereum node.
-    pub fn new(address: String) -> Blockchain {
-        let (eloop, http) = Http::new(address.as_str()).unwrap();
+    pub fn new(address: &str) -> Self {
+        let (eloop, http) = Http::new(address).unwrap();
         let web3 = Web3::new(http);
 
-        Blockchain::Eth(Ethereum {
+        Ethereum {
             web3,
             _eloop: eloop,
-        })
+        }
     }
 
     /// Uses web3 to retrieve the accounts.

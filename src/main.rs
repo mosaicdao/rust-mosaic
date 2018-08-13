@@ -32,7 +32,7 @@ fn main() {
 
     let config = Config::new();
 
-    if let Err(e) = rust_mosaic::run(config) {
+    if let Err(e) = rust_mosaic::run(&config) {
         error!("Application error: {}", e);
         process::exit(1);
     }
