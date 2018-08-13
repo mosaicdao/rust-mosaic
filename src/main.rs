@@ -18,7 +18,7 @@ extern crate rust_mosaic;
 extern crate simple_logger;
 
 use log::Level;
-use rust_mosaic::Config;
+use rust_mosaic::config::Config;
 use std::env;
 use std::process;
 

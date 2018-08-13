@@ -16,8 +16,6 @@
 
 //! This module implements the connection to an Ethereum blockchain.
 
-extern crate web3;
-
 use web3::futures::Future;
 use web3::transports::{EventLoopHandle, Http};
 use web3::types::H160;
