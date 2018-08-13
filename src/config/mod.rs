@@ -34,32 +34,28 @@ impl Config {
     /// Reads the configuration from environment variables and creates a new Config from them. In
     /// case an environment variable is not set, a default fallback will be used.
     pub fn new() -> Config {
-        // Read origin address from env and set it or fallback to default
-        let origin_address = env::var(ENV_ORIGIN_ADDRESS);
-        let origin_address = match origin_address {
-            Ok(address) => address,
-            Err(_) => {
-                info!("No origin chain address given, falling back to default.");
-                DEFAULT_ORIGIN_ADDRESS.to_string()
-            }
-        };
-        info!("Using origin chain address: {}", origin_address);
-
-        // Read auxiliary address from env and set it or fallback to default
-        let auxiliary_address = env::var(ENV_AUXILIARY_ADDRESS);
-        let auxiliary_address = match auxiliary_address {
-            Ok(address) => address,
-            Err(_) => {
-                info!("No auxiliary chain address given, falling back to default.");
-                DEFAULT_AUXILIARY_ADDRESS.to_string()
-            }
-        };
-        info!("Using auxiliary chain address: {}", auxiliary_address);
+        let origin_address = Self::read_environment_variable(ENV_ORIGIN_ADDRESS, DEFAULT_ORIGIN_ADDRESS);
+        let auxiliary_address = Self::read_environment_variable(ENV_AUXILIARY_ADDRESS, DEFAULT_AUXILIARY_ADDRESS);
 
         Config {
             origin_address,
             _auxiliary_address: auxiliary_address,
         }
+    }
+
+    fn read_environment_variable(name: &str, default_value: &str) -> String {
+        let value = env::var(name);
+        let value = match value {
+            Ok(value) => value,
+            Err(_) => {
+                info!("No {} found, falling back to default.", name);
+                default_value.to_string()
+            }
+        };
+
+        info!("Using {}: {}", name, value);
+
+        value
     }
 
     pub fn origin_address(&self) -> &String {
