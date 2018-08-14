@@ -18,11 +18,9 @@ extern crate mosaic;
 extern crate simple_logger;
 
 use log::Level;
-use rust_mosaic::Config;
+use mosaic::Config;
 use std::env;
 use std::process;
-
-use mosaic::Config;
 
 const ENV_LOG_LEVEL: &str = "MOSAIC_LOG_LEVEL";
 const DEFAULT_LOG_LEVEL: Level = Level::Info;
