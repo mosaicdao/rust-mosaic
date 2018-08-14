@@ -1,5 +1,5 @@
 [package]
-name = "rust-mosaic"
+name = "mosaic"
 version = "0.1.0"
 authors = ["Martin Schenck <martin@ost.com>"]
 
