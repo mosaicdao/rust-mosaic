@@ -18,7 +18,7 @@ extern crate mosaic;
 extern crate simple_logger;
 
 use log::Level;
-use mosaic::Config;
+use mosaic::config::Config;
 use std::env;
 use std::process;
 
@@ -32,7 +32,7 @@ fn main() {
 
     let config = Config::new();
 
-    if let Err(e) = mosaic::run(config) {
+    if let Err(e) = mosaic::run(&config) {
         error!("Application error: {}", e);
         process::exit(1);
     }
