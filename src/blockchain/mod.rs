@@ -14,7 +14,38 @@
 
 //! This module provides an API to interact with blockchains, e.g. Ethereum.
 
-#[cfg(test)]
-mod test {
-    use super::*;
+use self::types::address::Address;
+
+mod ethereum;
+pub mod types;
+
+/// Kind only represents what kind a blockchain is without any implementation.
+pub enum Kind {
+    Eth,
+}
+
+/// A blockchain is a connection to a blockchain.
+pub enum Blockchain {
+    Eth(ethereum::Ethereum),
+}
+
+impl Blockchain {
+    /// Creates a new blockchain of the given kind pointing to the given address.
+    ///
+    /// # Arguments
+    ///
+    /// * `kind` - The kind that the blockchain shall be.
+    /// * `address` - The address of a node of the blockchain.
+    pub fn new(kind: &Kind, address: &str) -> Self {
+        match *kind {
+            Kind::Eth => Blockchain::Eth(ethereum::Ethereum::new(&address)),
+        }
+    }
+
+    /// Returns all accounts on this blockchain.
+    pub fn get_accounts(&self) -> Vec<Address> {
+        match self {
+            Blockchain::Eth(ethereum) => ethereum.get_accounts(),
+        }
+    }
 }
