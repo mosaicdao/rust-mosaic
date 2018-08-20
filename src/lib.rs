@@ -14,9 +14,8 @@
 
 //! This crate implements a mosaic node.
 //! Mosaic nodes run to:
-//!  - validate auxiliary systems
-//!  - commit an origin chain onto an auxiliary chain
-//!  - commit an auxiliary chain onto an origin chain
+//!  - verify or validate for one or more Mosaic cores
+//!  - do facilitator work
 
 #[macro_use]
 extern crate log;

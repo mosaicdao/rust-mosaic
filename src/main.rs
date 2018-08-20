@@ -42,8 +42,7 @@ fn main() {
 /// the default log level.
 /// It panics if a log level should be set that is not known.
 fn read_log_level() -> Level {
-    let log_level = env::var(ENV_LOG_LEVEL);
-    match log_level {
+    match env::var(ENV_LOG_LEVEL) {
         Ok(level) => match level.as_ref() {
             "TRACE" => Level::Trace,
             "DEBUG" => Level::Debug,
