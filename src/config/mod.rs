@@ -18,9 +18,9 @@ use blockchain::types::address::Address;
 use std::env;
 
 // Environment variables and their defaults
-const ENV_ORIGIN_ENDPOINT: &str = "MOSAIC_ORIGIN_ADDRESS";
+const ENV_ORIGIN_ENDPOINT: &str = "MOSAIC_ORIGIN_ENDPOINT";
 const DEFAULT_ORIGIN_ENDPOINT: &str = "http://127.0.0.1:8545";
-const ENV_AUXILIARY_ENDPOINT: &str = "MOSAIC_AUXILIARY_ADDRESS";
+const ENV_AUXILIARY_ENDPOINT: &str = "MOSAIC_AUXILIARY_ENDPOINT";
 const DEFAULT_AUXILIARY_ENDPOINT: &str = "http://127.0.0.1:8546";
 const ENV_ORIGIN_CORE_ADDRESS: &str = "MOSAIC_ORIGIN_CORE_ADDRESS";
 
