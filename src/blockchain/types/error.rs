@@ -17,7 +17,7 @@
 use std;
 use std::fmt;
 
-/// An Error represents any error that appears during the interaction with the blockchain.
+/// An Error represents any error that appears during the interaction with a blockchain.
 #[derive(Debug)]
 pub struct Error {
     kind: ErrorKind,

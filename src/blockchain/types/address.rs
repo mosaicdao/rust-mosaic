@@ -15,11 +15,11 @@
 //! This module implements the Address struct and its methods.
 
 use blockchain::types::error::{Error, ErrorKind};
-use std::cmp::PartialEq;
 use std::fmt;
 use std::fmt::{Debug, Formatter, LowerHex};
 
 /// An Address is represented by a 20-bytes address.
+#[derive(PartialEq, Eq)]
 pub struct Address([u8; 20]);
 
 impl Address {
@@ -32,7 +32,7 @@ impl Address {
     ///
     /// *Arguments*
     ///
-    /// * `string` - A Strting in hex format that represents 20 bytes.
+    /// * `string` - A String in hex format that represents 20 bytes.
     ///              Must be exactly 40 characters long. Any leading `0x` will be removed.
     pub fn from_string(string: &str) -> Result<Self, Error> {
         let mut cleaned = &string.to_string()[..];
@@ -58,8 +58,7 @@ impl Address {
         let mut bytes = [0u8; 20];
         let mut index = 0;
         loop {
-            let byte = u8::from_str_radix(&cleaned[..2], 16);
-            let byte = match byte {
+            let byte = match u8::from_str_radix(&cleaned[..2], 16) {
                 Ok(byte) => byte,
                 Err(error) => {
                     return Err(Error::new(
@@ -87,17 +86,10 @@ impl Address {
     }
 }
 
-impl PartialEq for Address {
-    /// Two addresss are equal if their byte representations are equal.
-    fn eq(&self, other: &Address) -> bool {
-        self.bytes() == other.bytes()
-    }
-}
-
 impl LowerHex for Address {
     /// Writes the bytes as hex with leading zeros to the given Formatter.
     fn fmt(&self, f: &mut Formatter) -> Result<(), fmt::Error> {
-        for byte in &self.0 {
+        for byte in &self.bytes() {
             write!(f, "{:02x}", byte)?;
         }
 
@@ -129,36 +121,31 @@ mod test {
 
     #[test]
     fn address_from_string() {
-        let mut address =
-            Address::from_string(&"0000000000000000000000000000000000000000".to_owned()).unwrap();
+        let mut address = Address::from_string("0000000000000000000000000000000000000000").unwrap();
         assert_eq!(
             format!("{:x}", address),
             "0000000000000000000000000000000000000000"
         );
 
-        address =
-            Address::from_string(&"0000000000000000000000000000000000000001".to_owned()).unwrap();
+        address = Address::from_string("0000000000000000000000000000000000000001").unwrap();
         assert_eq!(
             format!("{:x}", address),
             "0000000000000000000000000000000000000001"
         );
 
-        address =
-            Address::from_string(&"0x1000000000000000000000000000000000000000".to_owned()).unwrap();
+        address = Address::from_string("0x1000000000000000000000000000000000000000").unwrap();
         assert_eq!(
             format!("{:x}", address),
             "1000000000000000000000000000000000000000"
         );
 
-        address =
-            Address::from_string(&"0x123456789abcdef01234123456789abcdef01234".to_owned()).unwrap();
+        address = Address::from_string("0x123456789abcdef01234123456789abcdef01234").unwrap();
         assert_eq!(
             format!("{:x}", address),
             "123456789abcdef01234123456789abcdef01234"
         );
 
-        address =
-            Address::from_string(&"0x123456789ABCDEF01234123456789abcdef01234".to_owned()).unwrap();
+        address = Address::from_string("0x123456789ABCDEF01234123456789abcdef01234").unwrap();
         assert_eq!(
             format!("{:x}", address),
             "123456789abcdef01234123456789abcdef01234"
@@ -187,5 +174,20 @@ mod test {
             format!("{:x}", address),
             "0100000000000000000000000000000000000012"
         );
+    }
+
+    #[test]
+    fn equality() {
+        let bytes = [4u8; 20];
+        let address_one = Address::from_bytes(bytes);
+
+        let bytes = [4u8; 20];
+        let address_two = Address::from_bytes(bytes);
+
+        let bytes = [5u8; 20];
+        let address_three = Address::from_bytes(bytes);
+
+        assert!(address_one == address_two);
+        assert!(address_one != address_three);
     }
 }

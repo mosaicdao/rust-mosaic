@@ -47,9 +47,10 @@ impl Config {
             Some(DEFAULT_AUXILIARY_ENDPOINT),
         );
 
-        let origin_core_address = Self::read_environment_variable(ENV_ORIGIN_CORE_ADDRESS, None);
-        let origin_core_address = match origin_core_address {
-            // TODO: Can this be done in a  better way than juggling a ton of Result/Option?
+        let origin_core_address = match Self::read_environment_variable(
+            ENV_ORIGIN_CORE_ADDRESS,
+            None,
+        ) {
             Some(origin_core_address) => Some(Address::from_string(&origin_core_address).unwrap()),
             None => None,
         };
@@ -68,8 +69,7 @@ impl Config {
     }
 
     fn read_environment_variable(name: &str, default_value: Option<&str>) -> Option<String> {
-        let value = env::var(name);
-        let value = match value {
+        let value = match env::var(name) {
             Ok(value) => Some(value),
             Err(_) => match default_value {
                 Some(default_value) => {
