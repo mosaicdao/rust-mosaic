@@ -8,7 +8,7 @@ RUN cargo build --release
 
 
 # Second stage for distribution.
-# Based on debian, as the rust image is based on debiar and libraries
+# Based on debian, as the rust image is based on debian and libraries
 # are dynamically linked. We could use musl instead to use a smaller
 # base image, e.g. alpine, for distribution.
 FROM debian:jessie
