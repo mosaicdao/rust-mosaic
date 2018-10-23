@@ -24,7 +24,7 @@ use super::types::address::{Address, AsAddress, FromAddress};
 /// This struct stores a connection to an Ethereum node.
 pub struct Ethereum {
     web3: Web3<Http>,
-    _eloop: EventLoopHandle,
+    _event_loop: EventLoopHandle,
 }
 
 impl Ethereum {
@@ -34,23 +34,23 @@ impl Ethereum {
     ///
     /// * `address` - The address of an ethereum node.
     pub fn new(address: &str) -> Self {
-        let (eloop, http) = Http::new(address).unwrap();
+        let (event_loop, http) = Http::new(address).unwrap();
         let web3 = Web3::new(http);
 
         Ethereum {
             web3,
-            _eloop: eloop,
+            _event_loop: event_loop,
         }
     }
 
     /// Uses web3 to retrieve the accounts.
-    /// Converts them to blockchain addresss and returns all addresss in a
+    /// Converts them to blockchain addresses and returns all addresses in a
     /// vector.
     pub fn get_accounts(&self) -> Vec<Address> {
-        let addresss = self.web3.eth().accounts().wait().unwrap();
+        let address = self.web3.eth().accounts().wait().unwrap();
         let mut v = Vec::new();
 
-        for h160 in addresss {
+        for h160 in address {
             v.push(h160.as_address())
         }
 

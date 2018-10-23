@@ -106,7 +106,7 @@ impl Debug for Address {
     }
 }
 
-// Converting other types to and from Addresss
+// Converting other types to and from Addresses
 pub trait AsAddress {
     fn as_address(&self) -> Address;
 }

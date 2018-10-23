@@ -31,13 +31,20 @@ pub mod config;
 /// Runs a mosaic node with the given configuration.
 /// Prints all accounts of the origin blockchain to std out.
 pub fn run(config: &Config) -> Result<(), Box<Error>> {
-    let blockchain = Blockchain::new(&Kind::Eth, config.origin_endpoint());
+    let origin = Blockchain::new(&Kind::Eth, config.origin_endpoint());
+    let auxiliary = Blockchain::new(&Kind::Eth, config.auxiliary_endpoint());
 
-    let accounts = blockchain.get_accounts();
+    let origin_accounts = origin.get_accounts();
+    let auxiliary_accounts = auxiliary.get_accounts();
 
-    println!("Accounts:");
-    for account in accounts {
+    println!("Origin accounts:");
+    for account in origin_accounts {
         println!("0x{:x}", account)
+    }
+
+    println!("Auxiliary accounts:");
+    for account in auxiliary_accounts {
+        println!("0x{:x}", account);
     }
 
     Ok(())

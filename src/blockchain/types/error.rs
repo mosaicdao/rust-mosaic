@@ -38,7 +38,7 @@ pub enum ErrorKind {
 
 impl std::error::Error for Error {
     fn description(&self) -> &str {
-        "A blockchain error occured."
+        "A blockchain error occurred."
     }
 
     fn cause(&self) -> Option<&std::error::Error> {
