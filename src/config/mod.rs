@@ -23,6 +23,8 @@ const DEFAULT_ORIGIN_ENDPOINT: &str = "http://127.0.0.1:8545";
 const ENV_AUXILIARY_ENDPOINT: &str = "MOSAIC_AUXILIARY_ENDPOINT";
 const DEFAULT_AUXILIARY_ENDPOINT: &str = "http://127.0.0.1:8546";
 const ENV_ORIGIN_CORE_ADDRESS: &str = "MOSAIC_ORIGIN_CORE_ADDRESS";
+const ENV_ORIGIN_VALIDATOR_ADDRESS: &str = "MOSAIC_ORIGIN_VALIDATOR_ADDRESS";
+const ENV_AUXILIARY_VALIDATOR_ADDRESS: &str = "MOSAIC_AUXILIARY_VALIDATOR_ADDRESS";
 
 /// Global config for running a mosaic node.
 #[derive(Default)]
@@ -34,40 +36,85 @@ pub struct Config {
     /// The address of a core address on origin.
     /// It is optional as it may not be needed depending on the mode that the node is run in.
     _origin_core_address: Option<Address>,
+    /// The address that is used to send messages as a validator on origin.
+    origin_validator_address: Address,
+    /// The address that is used to send messages as a validator on auxiliary.
+    auxiliary_validator_address: Address,
 }
 
 impl Config {
     /// Reads the configuration from environment variables and creates a new Config from them. In
-    /// case an environment variable is not set, a default fallback will be used.
+    /// case an environment variable is not set, a default fallback will be used if available.
+    ///
+    /// # Returns
+    ///
+    /// Returns a configuration with the settings read from the environment.
+    ///
+    /// # Panics
+    ///
+    /// This function panics if a mandatory value cannot be read and there is no default.
+    /// This function also panics if a value cannot be parsed into its appropriate type.
     pub fn new() -> Config {
-        let origin_endpoint =
-            Self::read_environment_variable(ENV_ORIGIN_ENDPOINT, Some(DEFAULT_ORIGIN_ENDPOINT));
-        let auxiliary_endpoint = Self::read_environment_variable(
+        let origin_endpoint = match Self::read_environment_variable(
+            ENV_ORIGIN_ENDPOINT,
+            Some(DEFAULT_ORIGIN_ENDPOINT),
+        ) {
+            Some(origin_endpoint) => origin_endpoint,
+            None => panic!("An origin endpoint must be set"),
+        };
+        let auxiliary_endpoint = match Self::read_environment_variable(
             ENV_AUXILIARY_ENDPOINT,
             Some(DEFAULT_AUXILIARY_ENDPOINT),
-        );
-
-        let origin_core_address = match Self::read_environment_variable(
-            ENV_ORIGIN_CORE_ADDRESS,
-            None,
         ) {
-            Some(origin_core_address) => Some(Address::from_string(&origin_core_address).unwrap()),
-            None => None,
+            Some(auxiliary_endpoint) => auxiliary_endpoint,
+            None => panic!("An auxiliary endpoint must be set"),
         };
 
+        let origin_core_address =
+            match Self::read_environment_variable(ENV_ORIGIN_CORE_ADDRESS, None) {
+                Some(origin_core_address) => Some(
+                    Address::from_string(&origin_core_address)
+                        .expect("The origin core address cannot be parsed"),
+                ),
+                None => None,
+            };
+
+        let origin_validator_address =
+            match Self::read_environment_variable(ENV_ORIGIN_VALIDATOR_ADDRESS, None) {
+                Some(origin_validator_address) => Address::from_string(&origin_validator_address)
+                    .expect("The origin validator address cannot be parsed"),
+                None => panic!("An origin validator address must be set"),
+            };
+
+        let auxiliary_validator_address =
+            match Self::read_environment_variable(ENV_AUXILIARY_VALIDATOR_ADDRESS, None) {
+                Some(auxiliary_validator_address) => {
+                    Address::from_string(&auxiliary_validator_address)
+                        .expect("The auxiliary validator address cannot be parsed")
+                }
+                None => panic!("An auxiliary validator address must be set"),
+            };
+
         Config {
-            origin_endpoint: match origin_endpoint {
-                Some(origin_endpoint) => origin_endpoint,
-                None => panic!("An origin endpoint must be set!"),
-            },
-            auxiliary_endpoint: match auxiliary_endpoint {
-                Some(auxiliary_endpoint) => auxiliary_endpoint,
-                None => panic!("An auxiliary endpoint must be set!"),
-            },
+            origin_endpoint,
+            auxiliary_endpoint,
             _origin_core_address: origin_core_address,
+            origin_validator_address,
+            auxiliary_validator_address,
         }
     }
 
+    /// Reads an environment variable and return the value if found or a default if given.
+    ///
+    /// # Arguments
+    ///
+    /// * `name` - The name of the environment variable.
+    /// * `default_value` - An optional default value if the environment variable is not set.
+    ///
+    /// # Returns
+    ///
+    /// An optional string that is the value of the environment variable if set or the default if
+    /// given.
     fn read_environment_variable(name: &str, default_value: Option<&str>) -> Option<String> {
         let value = match env::var(name) {
             Ok(value) => Some(value),
@@ -92,12 +139,24 @@ impl Config {
         value
     }
 
+    /// Returns the origin endpoint set on this config.
     pub fn origin_endpoint(&self) -> &String {
         &self.origin_endpoint
     }
 
+    /// Returns the auxiliary endpoint set on this config.
     pub fn auxiliary_endpoint(&self) -> &String {
         &self.auxiliary_endpoint
+    }
+
+    /// Returns the origin validator address set on this config.
+    pub fn origin_validator_address(&self) -> &Address {
+        &self.origin_validator_address
+    }
+
+    /// Returns the auxiliary validator address set on this config.
+    pub fn auxiliary_validator_address(&self) -> &Address {
+        &self.auxiliary_validator_address
     }
 }
 
@@ -107,11 +166,28 @@ mod test {
 
     #[test]
     fn the_config_reads_the_environment_variables() {
+        env::set_var(
+            ENV_AUXILIARY_VALIDATOR_ADDRESS,
+            "1234567890123456789012345678901234567890",
+        );
+        env::set_var(
+            ENV_ORIGIN_VALIDATOR_ADDRESS,
+            "6789012345678901234567890123456789012345",
+        );
+
         let config = Config::new();
         assert_eq!(config.origin_endpoint, DEFAULT_ORIGIN_ENDPOINT.to_owned());
         assert_eq!(
             config.auxiliary_endpoint,
             DEFAULT_AUXILIARY_ENDPOINT.to_owned()
+        );
+        assert_eq!(
+            *config.origin_validator_address(),
+            Address::from_string("6789012345678901234567890123456789012345").unwrap()
+        );
+        assert_eq!(
+            config.auxiliary_validator_address(),
+            &Address::from_string("1234567890123456789012345678901234567890").unwrap()
         );
 
         env::set_var(ENV_ORIGIN_ENDPOINT, "10.0.0.1");
@@ -129,5 +205,7 @@ mod test {
 
         env::remove_var(ENV_ORIGIN_ENDPOINT);
         env::remove_var(ENV_AUXILIARY_ENDPOINT);
+        env::remove_var(ENV_AUXILIARY_VALIDATOR_ADDRESS);
+        env::remove_var(ENV_ORIGIN_VALIDATOR_ADDRESS);
     }
 }
