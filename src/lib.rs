@@ -63,7 +63,7 @@ pub fn run(config: &Config) -> Result<(), Box<Error>> {
     }
 
     let data_to_sign = Bytes::from_string("0274834951").unwrap();
-    match auxiliary.sign(data_to_sign) {
+    match auxiliary.sign(&data_to_sign) {
         Ok(signature) => println!("Signature: {:x}", signature),
         Err(error) => println!("Could not get signature: {}", error),
     }

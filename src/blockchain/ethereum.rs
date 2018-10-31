@@ -89,7 +89,7 @@ impl Ethereum {
     /// # Returns
     ///
     /// Returns a `Signature` of the signed data.
-    pub fn sign(&self, data: Bytes) -> Result<Signature, Error> {
+    pub fn sign(&self, data: &Bytes) -> Result<Signature, Error> {
         let h520 = self
             .web3
             .eth()

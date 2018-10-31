@@ -37,10 +37,8 @@ impl Address {
         }
 
         let mut bytes_array = [0u8; 20];
-        let mut index = 0;
-        for byte in bytes {
+        for (index, byte) in bytes.into_iter().enumerate() {
             bytes_array[index] = *byte;
-            index += 1;
         }
         Ok(Address(bytes_array))
     }

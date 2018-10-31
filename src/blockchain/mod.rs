@@ -62,7 +62,7 @@ impl Blockchain {
     /// # Returns
     ///
     /// Returns a `Signature` of the signed data.
-    pub fn sign(&self, data: Bytes) -> Result<Signature, Error> {
+    pub fn sign(&self, data: &Bytes) -> Result<Signature, Error> {
         match self {
             Blockchain::Eth(ethereum) => ethereum.sign(data),
         }
