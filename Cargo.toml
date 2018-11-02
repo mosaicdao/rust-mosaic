@@ -4,7 +4,9 @@ version = "0.1.0"
 authors = ["Martin Schenck <martin@ost.com>"]
 
 [dependencies]
+futures = "^0.1.25"
 log = "^0.4.3"
 rpassword = "^2.0.0"
 simple_logger = "^0.5.0"
+tokio-core = "^0.1.17"
 web3 = "^0.4.0"

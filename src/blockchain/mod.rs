@@ -14,16 +14,14 @@
 
 //! This module provides an API to interact with blockchains, e.g. Ethereum.
 
-use self::types::address::Address;
-use self::types::bytes::Bytes;
-use self::types::error::Error;
-use self::types::signature::Signature;
+pub use self::types::*;
+use futures::prelude::*;
 
 mod ethereum;
 pub mod types;
 
 /// Kind only represents what kind a blockchain is without any implementation.
-pub enum Kind {
+pub enum BlockchainKind {
     Eth,
 }
 
@@ -38,19 +36,34 @@ impl Blockchain {
     /// # Arguments
     ///
     /// * `kind` - The kind that the blockchain shall be.
-    /// * `address` - The address of a node of the blockchain.
+    /// * `endpoint` - The endpoint of a node of the blockchain.
     /// * `validator` - The address of the validator to sign messages.
-    pub fn new(kind: &Kind, address: &str, validator: &Address) -> Result<Self, Error> {
+    /// * `event_loop` - The event loop handle.
+    pub fn new(
+        kind: &BlockchainKind,
+        endpoint: &str,
+        validator: Address,
+        event_loop: Box<tokio_core::reactor::Handle>,
+    ) -> Self {
         match kind {
-            Kind::Eth => match ethereum::Ethereum::new(address, *validator) {
-                Ok(ethereum) => Ok(Blockchain::Eth(ethereum)),
-                Err(error) => Err(error),
-            },
+            BlockchainKind::Eth => {
+                Blockchain::Eth(ethereum::Ethereum::new(endpoint, validator, event_loop))
+            }
+        }
+    }
+
+    /// Stream blocks returns a `futures::stream::Stream` of `Block`s.
+    ///
+    /// It is the caller's responsibility to poll the stream, e.g. call `for_each` and put the
+    /// future into a reactor.
+    pub fn stream_blocks(&self) -> impl Stream<Item = Block, Error = Error> {
+        match self {
+            Blockchain::Eth(ethereum) => ethereum.stream_blocks(),
         }
     }
 
     /// Returns all accounts on this blockchain.
-    pub fn get_accounts(&self) -> Vec<Address> {
+    pub fn get_accounts(&self) -> impl Future<Item = Vec<Address>, Error = Error> {
         match self {
             Blockchain::Eth(ethereum) => ethereum.get_accounts(),
         }
@@ -60,12 +73,12 @@ impl Blockchain {
     ///
     /// # Arguments
     ///
-    /// `data` - The data to sign.
+    /// * `data` - The data to sign.
     ///
     /// # Returns
     ///
     /// Returns a `Signature` of the signed data.
-    pub fn sign(&self, data: &Bytes) -> Result<Signature, Error> {
+    pub fn sign(&self, data: Bytes) -> impl Future<Item = Signature, Error = Error> {
         match self {
             Blockchain::Eth(ethereum) => ethereum.sign(data),
         }

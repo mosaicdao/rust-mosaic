@@ -19,16 +19,18 @@
 
 #[macro_use]
 extern crate log;
+extern crate futures;
 extern crate rpassword;
+extern crate tokio_core;
 extern crate web3;
 
-use blockchain::types::bytes::Bytes;
-use blockchain::{Blockchain, Kind};
+use blockchain::{Blockchain, BlockchainKind};
 pub use config::Config;
 use std::error::Error;
 
 mod blockchain;
 pub mod config;
+mod observer;
 
 /// Runs a mosaic node with the given configuration.
 /// Prints all accounts of the origin blockchain to std out.
@@ -37,48 +39,24 @@ pub mod config;
 ///
 /// * `config` - A configuration to run the mosaic node.
 pub fn run(config: &Config) -> Result<(), Box<Error>> {
-    let origin = match Blockchain::new(
-        &Kind::Eth,
+    let mut event_loop =
+        tokio_core::reactor::Core::new().expect("Could not initialize tokio event loop");
+    let origin = Blockchain::new(
+        &BlockchainKind::Eth,
         config.origin_endpoint(),
         config.origin_validator_address(),
-    ) {
-        Ok(origin) => origin,
-        Err(error) => {
-            error!("Cannot connect to origin: {}", error);
-            return Err(Box::new(error));
-        }
-    };
-    let auxiliary = match Blockchain::new(
-        &Kind::Eth,
+        Box::new(event_loop.handle()),
+    );
+    let auxiliary = Blockchain::new(
+        &BlockchainKind::Eth,
         config.auxiliary_endpoint(),
         config.auxiliary_validator_address(),
-    ) {
-        Ok(auxiliary) => auxiliary,
-        Err(error) => {
-            error!("Cannot connect to auxiliary: {}", error);
-            return Err(Box::new(error));
-        }
-    };
+        Box::new(event_loop.handle()),
+    );
 
-    // Example code (get accounts and sign data):
-    let origin_accounts = origin.get_accounts();
-    let auxiliary_accounts = auxiliary.get_accounts();
+    observer::run(&origin, &auxiliary, &event_loop.handle());
 
-    println!("Origin accounts:");
-    for account in origin_accounts {
-        println!("0x{:x}", account)
+    loop {
+        event_loop.turn(None);
     }
-
-    println!("Auxiliary accounts:");
-    for account in auxiliary_accounts {
-        println!("0x{:x}", account);
-    }
-
-    let data_to_sign = Bytes::from_string("0274834951").unwrap();
-    match auxiliary.sign(&data_to_sign) {
-        Ok(signature) => println!("Signature: {:x}", signature),
-        Err(error) => println!("Could not get signature: {}", error),
-    }
-
-    Ok(())
 }

@@ -14,45 +14,24 @@
 
 //! This module implements the Signature struct and its methods.
 
-use blockchain::types::error::{Error, ErrorKind};
-use std::fmt;
-use std::fmt::{Debug, Formatter, LowerHex};
+use std::fmt::{self, Debug, Formatter, LowerHex};
 
 /// A Signature is represented by 65-bytes.
 #[derive(Clone, Copy)]
-pub struct Signature([u8; 65]);
+pub struct Signature(pub [u8; 65]);
 
 impl Signature {
-    /// Creates a signature from a slice of 65 bytes.
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
-        if bytes.len() != 65 {
-            return Err(Error::new(
-                ErrorKind::InvalidSignature,
-                format!(
-                    "Signature must have exactly 65 bytes. Got {} instead: {:?}",
-                    bytes.len(),
-                    bytes,
-                ),
-            ));
-        }
-
-        let mut bytes_array = [0u8; 65];
-        for (index, byte) in bytes.into_iter().enumerate() {
-            bytes_array[index] = *byte;
-        }
-
-        Ok(Signature(bytes_array))
-    }
-
-    /// Returns the bytes representation of this signature.
+    /// Returns the underlying `u8` array of a `Signature`.
     pub fn bytes(&self) -> [u8; 65] {
         self.0
     }
 }
 
-// Converting other types to a Signature
-pub trait AsSignature {
-    fn as_signature(&self) -> Result<Signature, Error>;
+impl From<[u8; 65]> for Signature {
+    /// Converts a `u8` array of 65 elements into a `Signature`.
+    fn from(bytes: [u8; 65]) -> Self {
+        Self { 0: bytes }
+    }
 }
 
 impl LowerHex for Signature {
@@ -76,9 +55,10 @@ impl Debug for Signature {
 }
 
 impl std::cmp::PartialEq for Signature {
+    /// Two `Signature`s are equal, if the underlying arrays are equal.
     fn eq(&self, other: &Signature) -> bool {
         for (index, byte) in self.bytes().iter().enumerate() {
-            if *byte != other.bytes()[index] {
+            if byte != &other.bytes()[index] {
                 return false;
             }
         }
@@ -94,46 +74,39 @@ mod test {
     #[test]
     fn signature_from_bytes() {
         let mut bytes = [0u8; 65];
-        let signature = Signature::from_bytes(&bytes[..]).unwrap();
+        let signature: Signature = bytes.into();
         assert_eq!(
             format!("{:x}", signature),
             "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
         );
 
         bytes[0] = 1u8;
-        let signature = Signature::from_bytes(&bytes[..]).unwrap();
+        let signature: Signature = bytes.into();
         assert_eq!(
             format!("{:x}", signature),
             "0100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
         );
 
         bytes[19] = 18u8;
-        let signature = Signature::from_bytes(&bytes[..]).unwrap();
+        let signature: Signature = bytes.into();
         assert_eq!(
             format!("{:x}", signature),
             "0100000000000000000000000000000000000012000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
         );
-
-        let short_bytes = [0u8; 64];
-        let result = Signature::from_bytes(&short_bytes[..]);
-        assert!(result.is_err());
-        let long_bytes = [0u8; 66];
-        let result = Signature::from_bytes(&long_bytes[..]);
-        assert!(result.is_err());
     }
 
     #[test]
     fn equality() {
         let bytes = [4u8; 65];
-        let signature_one = Signature::from_bytes(&bytes[..]).unwrap();
+        let signature_one: Signature = bytes.into();
 
         let bytes = [4u8; 65];
-        let signature_two = Signature::from_bytes(&bytes[..]).unwrap();
+        let signature_two: Signature = bytes.into();
 
         let bytes = [5u8; 65];
-        let address_three = Signature::from_bytes(&bytes[..]).unwrap();
+        let signature_three: Signature = bytes.into();
 
         assert!(signature_one == signature_two);
-        assert!(signature_one != address_three);
+        assert!(signature_one != signature_three);
     }
 }

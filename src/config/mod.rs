@@ -14,7 +14,7 @@
 
 //! This module handles all configuration of this library.
 
-use blockchain::types::address::Address;
+use blockchain::Address;
 use std::env;
 
 // Environment variables and their defaults
@@ -73,7 +73,8 @@ impl Config {
         let origin_core_address =
             match Self::read_environment_variable(ENV_ORIGIN_CORE_ADDRESS, None) {
                 Some(origin_core_address) => Some(
-                    Address::from_string(&origin_core_address)
+                    origin_core_address
+                        .parse::<Address>()
                         .expect("The origin core address cannot be parsed"),
                 ),
                 None => None,
@@ -81,17 +82,17 @@ impl Config {
 
         let origin_validator_address =
             match Self::read_environment_variable(ENV_ORIGIN_VALIDATOR_ADDRESS, None) {
-                Some(origin_validator_address) => Address::from_string(&origin_validator_address)
+                Some(origin_validator_address) => origin_validator_address
+                    .parse::<Address>()
                     .expect("The origin validator address cannot be parsed"),
                 None => panic!("An origin validator address must be set"),
             };
 
         let auxiliary_validator_address =
             match Self::read_environment_variable(ENV_AUXILIARY_VALIDATOR_ADDRESS, None) {
-                Some(auxiliary_validator_address) => {
-                    Address::from_string(&auxiliary_validator_address)
-                        .expect("The auxiliary validator address cannot be parsed")
-                }
+                Some(auxiliary_validator_address) => auxiliary_validator_address
+                    .parse::<Address>()
+                    .expect("The auxiliary validator address cannot be parsed"),
                 None => panic!("An auxiliary validator address must be set"),
             };
 
@@ -150,13 +151,13 @@ impl Config {
     }
 
     /// Returns the origin validator address set on this config.
-    pub fn origin_validator_address(&self) -> &Address {
-        &self.origin_validator_address
+    pub fn origin_validator_address(&self) -> Address {
+        self.origin_validator_address
     }
 
     /// Returns the auxiliary validator address set on this config.
-    pub fn auxiliary_validator_address(&self) -> &Address {
-        &self.auxiliary_validator_address
+    pub fn auxiliary_validator_address(&self) -> Address {
+        self.auxiliary_validator_address
     }
 }
 
@@ -184,12 +185,16 @@ mod test {
             expected_origin_endpoint, config.origin_endpoint,
         );
         assert_eq!(
-            *config.origin_validator_address(),
-            Address::from_string("6789012345678901234567890123456789012345").unwrap()
+            config.origin_validator_address(),
+            "6789012345678901234567890123456789012345"
+                .parse::<Address>()
+                .unwrap()
         );
         assert_eq!(
             config.auxiliary_validator_address(),
-            &Address::from_string("1234567890123456789012345678901234567890").unwrap()
+            "1234567890123456789012345678901234567890"
+                .parse::<Address>()
+                .unwrap()
         );
 
         env::set_var(ENV_ORIGIN_ENDPOINT, "10.0.0.1");
