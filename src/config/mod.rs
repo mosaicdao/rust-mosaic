@@ -47,13 +47,13 @@ impl Config {
             Some(DEFAULT_AUXILIARY_ENDPOINT),
         );
 
-        let origin_core_address = match Self::read_environment_variable(
-            ENV_ORIGIN_CORE_ADDRESS,
-            None,
-        ) {
-            Some(origin_core_address) => Some(Address::from_string(&origin_core_address).unwrap()),
-            None => None,
-        };
+        let origin_core_address =
+            match Self::read_environment_variable(ENV_ORIGIN_CORE_ADDRESS, None) {
+                Some(origin_core_address) => {
+                    Some(Address::from_string(&origin_core_address).unwrap())
+                }
+                None => None,
+            };
 
         Config {
             origin_endpoint: match origin_endpoint {
@@ -107,16 +107,10 @@ mod test {
 
     #[test]
     fn the_config_reads_the_environment_variables() {
-        let config = Config::new();
-        assert_eq!(config.origin_endpoint, DEFAULT_ORIGIN_ENDPOINT.to_owned());
-        assert_eq!(
-            config.auxiliary_endpoint,
-            DEFAULT_AUXILIARY_ENDPOINT.to_owned()
-        );
-
         env::set_var(ENV_ORIGIN_ENDPOINT, "10.0.0.1");
         let config = Config::new();
         assert_eq!(config.origin_endpoint, "10.0.0.1");
+        // Assert also that it does not overwrite the wrong configuration value.
         assert_eq!(
             config.auxiliary_endpoint,
             DEFAULT_AUXILIARY_ENDPOINT.to_owned()
@@ -129,5 +123,15 @@ mod test {
 
         env::remove_var(ENV_ORIGIN_ENDPOINT);
         env::remove_var(ENV_AUXILIARY_ENDPOINT);
+    }
+
+    #[test]
+    fn the_config_falls_back_to_the_default() {
+        let config = Config::new();
+        assert_eq!(config.origin_endpoint, DEFAULT_ORIGIN_ENDPOINT.to_owned());
+        assert_eq!(
+            config.auxiliary_endpoint,
+            DEFAULT_AUXILIARY_ENDPOINT.to_owned()
+        );
     }
 }
