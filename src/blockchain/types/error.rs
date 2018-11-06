@@ -34,6 +34,7 @@ impl Error {
 #[derive(Debug)]
 pub enum ErrorKind {
     InvalidAddress,
+    NodeError,
 }
 
 impl std::error::Error for Error {
@@ -51,6 +52,7 @@ impl fmt::Display for Error {
         // TODO: is `unwrap()`ing the `write!`s here sensible?!
         match self.kind {
             ErrorKind::InvalidAddress => write!(f, "Not a valid address!").unwrap(),
+            ErrorKind::NodeError => write!(f, "Error on blockchain node!").unwrap(),
         };
 
         write!(f, " Explanation: {}", self.explanation).unwrap();

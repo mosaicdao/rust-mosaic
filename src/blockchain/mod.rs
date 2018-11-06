@@ -15,6 +15,7 @@
 //! This module provides an API to interact with blockchains, e.g. Ethereum.
 
 use self::types::address::Address;
+use self::types::error::Error;
 
 mod ethereum;
 pub mod types;
@@ -36,9 +37,16 @@ impl Blockchain {
     ///
     /// * `kind` - The kind that the blockchain shall be.
     /// * `address` - The address of a node of the blockchain.
-    pub fn new(kind: &Kind, address: &str) -> Self {
+    pub fn new(kind: &Kind, address: &str) -> Result<Self, Error> {
         match *kind {
-            Kind::Eth => Blockchain::Eth(ethereum::Ethereum::new(&address)),
+            Kind::Eth => {
+                let ethereum = match ethereum::Ethereum::new(&address) {
+                    Ok(ethereum) => ethereum,
+                    Err(error) => return Err(error),
+                };
+
+                Ok(Blockchain::Eth(ethereum))
+            }
         }
     }
 

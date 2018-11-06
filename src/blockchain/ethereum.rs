@@ -19,7 +19,8 @@ use web3::transports::{EventLoopHandle, Http};
 use web3::types::H160;
 use web3::Web3;
 
-use super::types::address::{Address, AsAddress, FromAddress};
+use blockchain::types::address::{Address, AsAddress, FromAddress};
+use blockchain::types::error::{Error, ErrorKind};
 
 /// This struct stores a connection to an Ethereum node.
 pub struct Ethereum {
@@ -33,14 +34,20 @@ impl Ethereum {
     /// # Arguments
     ///
     /// * `address` - The address of an ethereum node.
-    pub fn new(address: &str) -> Self {
-        let (event_loop, http) = Http::new(address).unwrap();
+    pub fn new(address: &str) -> Result<Self, Error> {
+        let (event_loop, http) = match Http::new(address) {
+            Ok((event_loop, http)) => (event_loop, http),
+            Err(error) => {
+                error!("Could not connect to ethereum: {}", error);
+                return Err(Error::new(ErrorKind::NodeError, error.to_string()));
+            }
+        };
         let web3 = Web3::new(http);
 
-        Ethereum {
+        Ok(Ethereum {
             web3,
             _event_loop: event_loop,
-        }
+        })
     }
 
     /// Uses web3 to retrieve the accounts.

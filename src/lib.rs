@@ -31,8 +31,23 @@ pub mod config;
 /// Runs a mosaic node with the given configuration.
 /// Prints all accounts of the origin blockchain to std out.
 pub fn run(config: &Config) -> Result<(), Box<Error>> {
-    let origin = Blockchain::new(&Kind::Eth, config.origin_endpoint());
-    let auxiliary = Blockchain::new(&Kind::Eth, config.auxiliary_endpoint());
+    let origin = match Blockchain::new(&Kind::Eth, config.origin_endpoint()) {
+        Ok(origin) => origin,
+        Err(error) => {
+            error!("Could not create origin connection: {}", error.to_string());
+            panic!(error)
+        }
+    };
+    let auxiliary = match Blockchain::new(&Kind::Eth, config.auxiliary_endpoint()) {
+        Ok(auxiliary) => auxiliary,
+        Err(error) => {
+            error!(
+                "Could not create auxiliary connection: {}",
+                error.to_string()
+            );
+            panic!(error)
+        }
+    };
 
     let origin_accounts = origin.get_accounts();
     let auxiliary_accounts = auxiliary.get_accounts();
