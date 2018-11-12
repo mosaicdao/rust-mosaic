@@ -30,7 +30,7 @@ pub struct Config {
     /// Address of the origin chain, e.g. "127.0.0.1:8485"
     origin_endpoint: String,
     /// Address of the auxiliary chain, e.g. "127.0.0.1:8486"
-    _auxiliary_endpoint: String,
+    auxiliary_endpoint: String,
     /// The address of a core address on origin.
     /// It is optional as it may not be needed depending on the mode that the node is run in.
     _origin_core_address: Option<Address>,
@@ -47,20 +47,20 @@ impl Config {
             Some(DEFAULT_AUXILIARY_ENDPOINT),
         );
 
-        let origin_core_address = match Self::read_environment_variable(
-            ENV_ORIGIN_CORE_ADDRESS,
-            None,
-        ) {
-            Some(origin_core_address) => Some(Address::from_string(&origin_core_address).unwrap()),
-            None => None,
-        };
+        let origin_core_address =
+            match Self::read_environment_variable(ENV_ORIGIN_CORE_ADDRESS, None) {
+                Some(origin_core_address) => {
+                    Some(Address::from_string(&origin_core_address).unwrap())
+                }
+                None => None,
+            };
 
         Config {
             origin_endpoint: match origin_endpoint {
                 Some(origin_endpoint) => origin_endpoint,
                 None => panic!("An origin endpoint must be set!"),
             },
-            _auxiliary_endpoint: match auxiliary_endpoint {
+            auxiliary_endpoint: match auxiliary_endpoint {
                 Some(auxiliary_endpoint) => auxiliary_endpoint,
                 None => panic!("An auxiliary endpoint must be set!"),
             },
@@ -95,6 +95,10 @@ impl Config {
     pub fn origin_endpoint(&self) -> &String {
         &self.origin_endpoint
     }
+
+    pub fn auxiliary_endpoint(&self) -> &String {
+        &self.auxiliary_endpoint
+    }
 }
 
 #[cfg(test)]
@@ -103,27 +107,50 @@ mod test {
 
     #[test]
     fn the_config_reads_the_environment_variables() {
+        let expected_origin_endpoint = "10.0.0.1";
+        env::set_var(ENV_ORIGIN_ENDPOINT, expected_origin_endpoint);
         let config = Config::new();
-        assert_eq!(config.origin_endpoint, DEFAULT_ORIGIN_ENDPOINT.to_owned());
         assert_eq!(
-            config._auxiliary_endpoint,
+            config.origin_endpoint, expected_origin_endpoint,
+            "Did not read the origin endpoint {}, but {} instead",
+            expected_origin_endpoint, config.origin_endpoint,
+        );
+        // Assert also that it does not overwrite the wrong configuration value.
+        assert_eq!(
+            config.auxiliary_endpoint,
             DEFAULT_AUXILIARY_ENDPOINT.to_owned()
         );
 
-        env::set_var(ENV_ORIGIN_ENDPOINT, "10.0.0.1");
+        let expected_auxiliary_endpoint = "10.0.0.2";
+        env::set_var(ENV_AUXILIARY_ENDPOINT, expected_auxiliary_endpoint);
         let config = Config::new();
-        assert_eq!(config.origin_endpoint, "10.0.0.1");
         assert_eq!(
-            config._auxiliary_endpoint,
-            DEFAULT_AUXILIARY_ENDPOINT.to_owned()
+            config.origin_endpoint, expected_origin_endpoint,
+            "Did not read the origin endpoint {}, but {} instead",
+            expected_origin_endpoint, config.origin_endpoint,
         );
-
-        env::set_var(ENV_AUXILIARY_ENDPOINT, "10.0.0.2");
-        let config = Config::new();
-        assert_eq!(config.origin_endpoint, "10.0.0.1");
-        assert_eq!(config._auxiliary_endpoint, "10.0.0.2");
+        assert_eq!(
+            config.auxiliary_endpoint, expected_auxiliary_endpoint,
+            "Did not read the auxiliary endpoint {}, but {} instead",
+            expected_auxiliary_endpoint, config.auxiliary_endpoint,
+        );
 
         env::remove_var(ENV_ORIGIN_ENDPOINT);
         env::remove_var(ENV_AUXILIARY_ENDPOINT);
+    }
+
+    #[test]
+    fn the_config_falls_back_to_the_default() {
+        let config = Config::new();
+        assert_eq!(
+            config.origin_endpoint,
+            DEFAULT_ORIGIN_ENDPOINT.to_owned(),
+            "Did not set the default origin endpoint when no ENV var set.",
+        );
+        assert_eq!(
+            config.auxiliary_endpoint,
+            DEFAULT_AUXILIARY_ENDPOINT.to_owned(),
+            "Did not set the default auxiliary endpoint when no ENV var set.",
+        );
     }
 }

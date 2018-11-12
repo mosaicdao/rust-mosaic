@@ -19,12 +19,13 @@ use web3::transports::{EventLoopHandle, Http};
 use web3::types::H160;
 use web3::Web3;
 
-use super::types::address::{Address, AsAddress, FromAddress};
+use blockchain::types::address::{Address, AsAddress, FromAddress};
+use blockchain::types::error::{Error, ErrorKind};
 
 /// This struct stores a connection to an Ethereum node.
 pub struct Ethereum {
     web3: Web3<Http>,
-    _eloop: EventLoopHandle,
+    _event_loop: EventLoopHandle,
 }
 
 impl Ethereum {
@@ -33,24 +34,30 @@ impl Ethereum {
     /// # Arguments
     ///
     /// * `address` - The address of an ethereum node.
-    pub fn new(address: &str) -> Self {
-        let (eloop, http) = Http::new(address).unwrap();
+    pub fn new(address: &str) -> Result<Self, Error> {
+        let (event_loop, http) = match Http::new(address) {
+            Ok((event_loop, http)) => (event_loop, http),
+            Err(error) => {
+                error!("Could not connect to ethereum: {}", error);
+                return Err(Error::new(ErrorKind::NodeError, error.to_string()));
+            }
+        };
         let web3 = Web3::new(http);
 
-        Ethereum {
+        Ok(Ethereum {
             web3,
-            _eloop: eloop,
-        }
+            _event_loop: event_loop,
+        })
     }
 
     /// Uses web3 to retrieve the accounts.
-    /// Converts them to blockchain addresss and returns all addresss in a
+    /// Converts them to blockchain addresses and returns all addresses in a
     /// vector.
     pub fn get_accounts(&self) -> Vec<Address> {
-        let addresss = self.web3.eth().accounts().wait().unwrap();
+        let addresses = self.web3.eth().accounts().wait().unwrap();
         let mut v = Vec::new();
 
-        for h160 in addresss {
+        for h160 in addresses {
             v.push(h160.as_address())
         }
 
