@@ -54,10 +54,10 @@ impl Ethereum {
     /// Converts them to blockchain addresses and returns all addresses in a
     /// vector.
     pub fn get_accounts(&self) -> Vec<Address> {
-        let address = self.web3.eth().accounts().wait().unwrap();
+        let addresses = self.web3.eth().accounts().wait().unwrap();
         let mut v = Vec::new();
 
-        for h160 in address {
+        for h160 in addresses {
             v.push(h160.as_address())
         }
 
