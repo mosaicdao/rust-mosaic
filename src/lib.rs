@@ -37,16 +37,28 @@ pub mod config;
 ///
 /// * `config` - A configuration to run the mosaic node.
 pub fn run(config: &Config) -> Result<(), Box<Error>> {
-    let origin = Blockchain::new(
+    let origin = match Blockchain::new(
         &Kind::Eth,
         config.origin_endpoint(),
         config.origin_validator_address(),
-    );
-    let auxiliary = Blockchain::new(
+    ) {
+        Ok(origin) => origin,
+        Err(error) => {
+            error!("Cannot connect to origin: {}", error);
+            return Err(Box::new(error));
+        }
+    };
+    let auxiliary = match Blockchain::new(
         &Kind::Eth,
         config.auxiliary_endpoint(),
         config.auxiliary_validator_address(),
-    );
+    ) {
+        Ok(auxiliary) => auxiliary,
+        Err(error) => {
+            error!("Cannot connect to auxiliary: {}", error);
+            return Err(Box::new(error));
+        }
+    };
 
     // Example code (get accounts and sign data):
     let origin_accounts = origin.get_accounts();

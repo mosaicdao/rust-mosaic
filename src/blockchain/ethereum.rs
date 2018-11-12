@@ -20,10 +20,10 @@ use web3::transports::{EventLoopHandle, Http};
 use web3::types::{H160, H520};
 use web3::Web3;
 
-use super::types::address::{Address, AsAddress, FromAddress};
-use super::types::bytes::Bytes;
-use super::types::error::Error;
-use super::types::signature::{AsSignature, Signature};
+use blockchain::types::address::{Address, AsAddress, FromAddress};
+use blockchain::types::bytes::Bytes;
+use blockchain::types::error::{Error, ErrorKind};
+use blockchain::types::signature::{AsSignature, Signature};
 
 /// This struct stores a connection to an Ethereum node.
 pub struct Ethereum {
@@ -41,8 +41,14 @@ impl Ethereum {
     ///
     /// * `address` - The address of an ethereum node.
     /// * `validator` - The address of the validator to sign and send messages from.
-    pub fn new(address: &str, validator: Address) -> Self {
-        let (event_loop, http) = Http::new(address).unwrap();
+    pub fn new(address: &str, validator: Address) -> Result<Self, Error> {
+        let (event_loop, http) = match Http::new(address) {
+            Ok((event_loop, http)) => (event_loop, http),
+            Err(error) => {
+                error!("Could not connect to ethereum: {}", error);
+                return Err(Error::new(ErrorKind::NodeError, error.to_string()));
+            }
+        };
         let web3 = Web3::new(http);
 
         let password = rpassword::prompt_password_stdout(&format!(
@@ -59,7 +65,7 @@ impl Ethereum {
 
         ethereum.unlock_account();
 
-        ethereum
+        Ok(ethereum)
     }
 
     /// Uses web3 to retrieve the accounts.

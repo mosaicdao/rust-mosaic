@@ -167,19 +167,21 @@ mod test {
     #[test]
     fn the_config_reads_the_environment_variables() {
         env::set_var(
-            ENV_AUXILIARY_VALIDATOR_ADDRESS,
-            "1234567890123456789012345678901234567890",
-        );
-        env::set_var(
             ENV_ORIGIN_VALIDATOR_ADDRESS,
             "6789012345678901234567890123456789012345",
         );
+        env::set_var(
+            ENV_AUXILIARY_VALIDATOR_ADDRESS,
+            "1234567890123456789012345678901234567890",
+        );
+        let expected_origin_endpoint = "10.0.0.1";
+        env::set_var(ENV_ORIGIN_ENDPOINT, expected_origin_endpoint);
 
         let config = Config::new();
-        assert_eq!(config.origin_endpoint, DEFAULT_ORIGIN_ENDPOINT.to_owned());
         assert_eq!(
-            config.auxiliary_endpoint,
-            DEFAULT_AUXILIARY_ENDPOINT.to_owned()
+            config.origin_endpoint, expected_origin_endpoint,
+            "Did not read the origin endpoint {}, but {} instead",
+            expected_origin_endpoint, config.origin_endpoint,
         );
         assert_eq!(
             *config.origin_validator_address(),
@@ -193,19 +195,57 @@ mod test {
         env::set_var(ENV_ORIGIN_ENDPOINT, "10.0.0.1");
         let config = Config::new();
         assert_eq!(config.origin_endpoint, "10.0.0.1");
+        // Assert also that it does not overwrite the wrong configuration value.
         assert_eq!(
             config.auxiliary_endpoint,
             DEFAULT_AUXILIARY_ENDPOINT.to_owned()
         );
 
-        env::set_var(ENV_AUXILIARY_ENDPOINT, "10.0.0.2");
+        let expected_auxiliary_endpoint = "10.0.0.2";
+        env::set_var(ENV_AUXILIARY_ENDPOINT, expected_auxiliary_endpoint);
         let config = Config::new();
-        assert_eq!(config.origin_endpoint, "10.0.0.1");
-        assert_eq!(config.auxiliary_endpoint, "10.0.0.2");
+        assert_eq!(
+            config.origin_endpoint, expected_origin_endpoint,
+            "Did not read the origin endpoint {}, but {} instead",
+            expected_origin_endpoint, config.origin_endpoint,
+        );
+        assert_eq!(
+            config.auxiliary_endpoint, expected_auxiliary_endpoint,
+            "Did not read the auxiliary endpoint {}, but {} instead",
+            expected_auxiliary_endpoint, config.auxiliary_endpoint,
+        );
 
         env::remove_var(ENV_ORIGIN_ENDPOINT);
         env::remove_var(ENV_AUXILIARY_ENDPOINT);
-        env::remove_var(ENV_AUXILIARY_VALIDATOR_ADDRESS);
         env::remove_var(ENV_ORIGIN_VALIDATOR_ADDRESS);
+        env::remove_var(ENV_AUXILIARY_VALIDATOR_ADDRESS);
+    }
+
+    #[test]
+    fn the_config_falls_back_to_the_default() {
+        // These must be set without a fallback
+        env::set_var(
+            ENV_ORIGIN_VALIDATOR_ADDRESS,
+            "6789012345678901234567890123456789012345",
+        );
+        env::set_var(
+            ENV_AUXILIARY_VALIDATOR_ADDRESS,
+            "1234567890123456789012345678901234567890",
+        );
+
+        let config = Config::new();
+        assert_eq!(
+            config.origin_endpoint,
+            DEFAULT_ORIGIN_ENDPOINT.to_owned(),
+            "Did not set the default origin endpoint when no ENV var set.",
+        );
+        assert_eq!(
+            config.auxiliary_endpoint,
+            DEFAULT_AUXILIARY_ENDPOINT.to_owned(),
+            "Did not set the default auxiliary endpoint when no ENV var set.",
+        );
+
+        env::remove_var(ENV_ORIGIN_VALIDATOR_ADDRESS);
+        env::remove_var(ENV_AUXILIARY_VALIDATOR_ADDRESS);
     }
 }

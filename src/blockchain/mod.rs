@@ -40,9 +40,12 @@ impl Blockchain {
     /// * `kind` - The kind that the blockchain shall be.
     /// * `address` - The address of a node of the blockchain.
     /// * `validator` - The address of the validator to sign messages.
-    pub fn new(kind: &Kind, address: &str, validator: &Address) -> Self {
+    pub fn new(kind: &Kind, address: &str, validator: &Address) -> Result<Self, Error> {
         match kind {
-            Kind::Eth => Blockchain::Eth(ethereum::Ethereum::new(address, *validator)),
+            Kind::Eth => match ethereum::Ethereum::new(address, *validator) {
+                Ok(ethereum) => Ok(Blockchain::Eth(ethereum)),
+                Err(error) => Err(error),
+            },
         }
     }
 
