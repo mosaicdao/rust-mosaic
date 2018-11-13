@@ -5,6 +5,7 @@
 .idea
 *.iml
 tags
+.vscode
 
 # Rust
 /target

@@ -18,7 +18,7 @@ extern crate mosaic;
 extern crate simple_logger;
 
 use log::Level;
-use mosaic::config::Config;
+use mosaic::Config;
 use std::env;
 use std::process;
 

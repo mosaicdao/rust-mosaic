@@ -34,6 +34,8 @@ impl Error {
 #[derive(Debug)]
 pub enum ErrorKind {
     InvalidAddress,
+    InvalidBytes,
+    InvalidSignature,
     NodeError,
 }
 
@@ -49,9 +51,10 @@ impl std::error::Error for Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // TODO: is `unwrap()`ing the `write!`s here sensible?!
         match self.kind {
             ErrorKind::InvalidAddress => write!(f, "Not a valid address!").unwrap(),
+            ErrorKind::InvalidBytes => write!(f, "Not valid bytes!").unwrap(),
+            ErrorKind::InvalidSignature => write!(f, "Not a valid signature!").unwrap(),
             ErrorKind::NodeError => write!(f, "Error on blockchain node!").unwrap(),
         };
 

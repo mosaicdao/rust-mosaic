@@ -19,13 +19,28 @@ use std::fmt;
 use std::fmt::{Debug, Formatter, LowerHex};
 
 /// An Address is represented by a 20-bytes address.
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Default, Clone, Copy)]
 pub struct Address([u8; 20]);
 
 impl Address {
     /// Creates an address with the address given as 20 bytes.
-    pub fn from_bytes(bytes: [u8; 20]) -> Self {
-        Address(bytes)
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
+        if bytes.len() != 20 {
+            return Err(Error::new(
+                ErrorKind::InvalidAddress,
+                format!(
+                    "Address must have exactly 20 bytes. Got {} instead: {:?}",
+                    bytes.len(),
+                    bytes,
+                ),
+            ));
+        }
+
+        let mut bytes_array = [0u8; 20];
+        for (index, byte) in bytes.into_iter().enumerate() {
+            bytes_array[index] = *byte;
+        }
+        Ok(Address(bytes_array))
     }
 
     /// Creates an address from a string in hex format of the address.
@@ -108,11 +123,11 @@ impl Debug for Address {
 
 // Converting other types to and from Addresses
 pub trait AsAddress {
-    fn as_address(&self) -> Address;
+    fn as_address(&self) -> Result<Address, Error>;
 }
 
 pub trait FromAddress {
-    fn from_address(address: Address) -> Self;
+    fn from_address(address: &Address) -> Self;
 }
 
 #[cfg(test)]
@@ -150,26 +165,31 @@ mod test {
             format!("{:x}", address),
             "123456789abcdef01234123456789abcdef01234"
         );
+
+        let mut result = Address::from_string("0x123456789ABCDEF01234123456789abcdef");
+        assert!(result.is_err());
+        result = Address::from_string("0x123456789ABCDEF01234123456789abcdef012341234");
+        assert!(result.is_err());
     }
 
     #[test]
     fn address_to_lower_hex() {
         let mut bytes = [0u8; 20];
-        let address = Address::from_bytes(bytes);
+        let address = Address::from_bytes(&bytes[..]).unwrap();
         assert_eq!(
             format!("{:x}", address),
             "0000000000000000000000000000000000000000"
         );
 
         bytes[0] = 1u8;
-        let address = Address::from_bytes(bytes);
+        let address = Address::from_bytes(&bytes[..]).unwrap();
         assert_eq!(
             format!("{:x}", address),
             "0100000000000000000000000000000000000000"
         );
 
         bytes[19] = 18u8;
-        let address = Address::from_bytes(bytes);
+        let address = Address::from_bytes(&bytes[..]).unwrap();
         assert_eq!(
             format!("{:x}", address),
             "0100000000000000000000000000000000000012"
@@ -179,13 +199,13 @@ mod test {
     #[test]
     fn equality() {
         let bytes = [4u8; 20];
-        let address_one = Address::from_bytes(bytes);
+        let address_one = Address::from_bytes(&bytes[..]).unwrap();
 
         let bytes = [4u8; 20];
-        let address_two = Address::from_bytes(bytes);
+        let address_two = Address::from_bytes(&bytes[..]).unwrap();
 
         let bytes = [5u8; 20];
-        let address_three = Address::from_bytes(bytes);
+        let address_three = Address::from_bytes(&bytes[..]).unwrap();
 
         assert!(address_one == address_two);
         assert!(address_one != address_three);

@@ -19,10 +19,12 @@
 
 #[macro_use]
 extern crate log;
+extern crate rpassword;
 extern crate web3;
 
+use blockchain::types::bytes::Bytes;
 use blockchain::{Blockchain, Kind};
-use config::Config;
+pub use config::Config;
 use std::error::Error;
 
 mod blockchain;
@@ -30,25 +32,35 @@ pub mod config;
 
 /// Runs a mosaic node with the given configuration.
 /// Prints all accounts of the origin blockchain to std out.
+///
+/// # Arguments
+///
+/// * `config` - A configuration to run the mosaic node.
 pub fn run(config: &Config) -> Result<(), Box<Error>> {
-    let origin = match Blockchain::new(&Kind::Eth, config.origin_endpoint()) {
+    let origin = match Blockchain::new(
+        &Kind::Eth,
+        config.origin_endpoint(),
+        config.origin_validator_address(),
+    ) {
         Ok(origin) => origin,
         Err(error) => {
-            error!("Could not create origin connection: {}", error.to_string());
-            panic!(error)
+            error!("Cannot connect to origin: {}", error);
+            return Err(Box::new(error));
         }
     };
-    let auxiliary = match Blockchain::new(&Kind::Eth, config.auxiliary_endpoint()) {
+    let auxiliary = match Blockchain::new(
+        &Kind::Eth,
+        config.auxiliary_endpoint(),
+        config.auxiliary_validator_address(),
+    ) {
         Ok(auxiliary) => auxiliary,
         Err(error) => {
-            error!(
-                "Could not create auxiliary connection: {}",
-                error.to_string()
-            );
-            panic!(error)
+            error!("Cannot connect to auxiliary: {}", error);
+            return Err(Box::new(error));
         }
     };
 
+    // Example code (get accounts and sign data):
     let origin_accounts = origin.get_accounts();
     let auxiliary_accounts = auxiliary.get_accounts();
 
@@ -60,6 +72,12 @@ pub fn run(config: &Config) -> Result<(), Box<Error>> {
     println!("Auxiliary accounts:");
     for account in auxiliary_accounts {
         println!("0x{:x}", account);
+    }
+
+    let data_to_sign = Bytes::from_string("0274834951").unwrap();
+    match auxiliary.sign(&data_to_sign) {
+        Ok(signature) => println!("Signature: {:x}", signature),
+        Err(error) => println!("Could not get signature: {}", error),
     }
 
     Ok(())

@@ -15,4 +15,6 @@
 //! All the blockchain types that we interact with.
 
 pub mod address;
+pub mod bytes;
 pub mod error;
+pub mod signature;
