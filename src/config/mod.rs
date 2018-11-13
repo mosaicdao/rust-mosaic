@@ -16,6 +16,8 @@
 
 use blockchain::Address;
 use std::env;
+use std::error::Error;
+use std::time::Duration;
 
 // Environment variables and their defaults
 const ENV_ORIGIN_ENDPOINT: &str = "MOSAIC_ORIGIN_ENDPOINT";
@@ -25,6 +27,10 @@ const DEFAULT_AUXILIARY_ENDPOINT: &str = "http://127.0.0.1:8546";
 const ENV_ORIGIN_CORE_ADDRESS: &str = "MOSAIC_ORIGIN_CORE_ADDRESS";
 const ENV_ORIGIN_VALIDATOR_ADDRESS: &str = "MOSAIC_ORIGIN_VALIDATOR_ADDRESS";
 const ENV_AUXILIARY_VALIDATOR_ADDRESS: &str = "MOSAIC_AUXILIARY_VALIDATOR_ADDRESS";
+const ENV_ORIGIN_POLLING_INTERVAL: &str = "MOSAIC_ORIGIN_POLLING_INTERVAL";
+const DEFAULT_ORIGIN_POLLING_INTERVAL: &str = "1";
+const ENV_AUXILIARY_POLLING_INTERVAL: &str = "MOSAIC_AUXILIARY_POLLING_INTERVAL";
+const DEFAULT_AUXILIARY_POLLING_INTERVAL: &str = "1";
 
 /// Global config for running a mosaic node.
 #[derive(Default)]
@@ -40,6 +46,8 @@ pub struct Config {
     origin_validator_address: Address,
     /// The address that is used to send messages as a validator on auxiliary.
     auxiliary_validator_address: Address,
+    origin_polling_interval: Duration,
+    auxiliary_polling_interval: Duration,
 }
 
 impl Config {
@@ -96,12 +104,44 @@ impl Config {
                 None => panic!("An auxiliary validator address must be set"),
             };
 
+        let origin_polling_interval = match Self::read_environment_variable(
+            ENV_ORIGIN_POLLING_INTERVAL,
+            Some(DEFAULT_ORIGIN_POLLING_INTERVAL),
+        ) {
+            Some(origin_polling_interval) => match string_to_seconds(&origin_polling_interval) {
+                Ok(duration) => duration,
+                Err(error) => panic!(
+                    "Could not parse given seconds '{}' to origin polling interval: {}",
+                    origin_polling_interval, error
+                ),
+            },
+            None => panic!("An origin polling period must be set"),
+        };
+
+        let auxiliary_polling_interval = match Self::read_environment_variable(
+            ENV_AUXILIARY_POLLING_INTERVAL,
+            Some(DEFAULT_AUXILIARY_POLLING_INTERVAL),
+        ) {
+            Some(auxiliary_polling_interval) => {
+                match string_to_seconds(&auxiliary_polling_interval) {
+                    Ok(duration) => duration,
+                    Err(error) => panic!(
+                        "Could not parse given seconds '{}' to origin polling interval: {}",
+                        auxiliary_polling_interval, error
+                    ),
+                }
+            }
+            None => panic!("An auxiliary polling period must be set"),
+        };
+
         Config {
             origin_endpoint,
             auxiliary_endpoint,
             _origin_core_address: origin_core_address,
             origin_validator_address,
             auxiliary_validator_address,
+            origin_polling_interval,
+            auxiliary_polling_interval,
         }
     }
 
@@ -159,6 +199,27 @@ impl Config {
     pub fn auxiliary_validator_address(&self) -> Address {
         self.auxiliary_validator_address
     }
+
+    pub fn origin_polling_interval(&self) -> Duration {
+        self.origin_polling_interval
+    }
+
+    pub fn auxiliary_polling_interval(&self) -> Duration {
+        self.auxiliary_polling_interval
+    }
+}
+
+/// Parses a string of numbers into a duration in seconds.
+/// For example, if the string is "15", then the function will return a duration that represents 15
+/// seconds.
+///
+/// # Arguments
+///
+/// * `string` - A string that holds a number, e.g. "15".
+fn string_to_seconds(string: &str) -> Result<Duration, Box<Error>> {
+    let seconds = try!(string.parse::<u64>());
+
+    Ok(Duration::from_secs(seconds))
 }
 
 #[cfg(test)]
@@ -167,6 +228,9 @@ mod test {
 
     #[test]
     fn the_config_reads_the_environment_variables() {
+        // Testing that the config falls back to the default values.
+
+        // These must be set without a fallback. Mandatory.
         env::set_var(
             ENV_ORIGIN_VALIDATOR_ADDRESS,
             "6789012345678901234567890123456789012345",
@@ -175,6 +239,23 @@ mod test {
             ENV_AUXILIARY_VALIDATOR_ADDRESS,
             "1234567890123456789012345678901234567890",
         );
+
+        let config = Config::new();
+        assert_eq!(
+            config.origin_endpoint,
+            DEFAULT_ORIGIN_ENDPOINT.to_owned(),
+            "Did not set the default origin endpoint when no ENV var set.",
+        );
+        assert_eq!(
+            config.auxiliary_endpoint,
+            DEFAULT_AUXILIARY_ENDPOINT.to_owned(),
+            "Did not set the default auxiliary endpoint when no ENV var set.",
+        );
+
+        // Testing that set values are read.
+        // Testing both cases in one test method so that there is no race condition between setting
+        // and removing env variables, as rust runs test methods in parallel.
+
         let expected_origin_endpoint = "10.0.0.1";
         env::set_var(ENV_ORIGIN_ENDPOINT, expected_origin_endpoint);
 
@@ -222,34 +303,6 @@ mod test {
 
         env::remove_var(ENV_ORIGIN_ENDPOINT);
         env::remove_var(ENV_AUXILIARY_ENDPOINT);
-        env::remove_var(ENV_ORIGIN_VALIDATOR_ADDRESS);
-        env::remove_var(ENV_AUXILIARY_VALIDATOR_ADDRESS);
-    }
-
-    #[test]
-    fn the_config_falls_back_to_the_default() {
-        // These must be set without a fallback
-        env::set_var(
-            ENV_ORIGIN_VALIDATOR_ADDRESS,
-            "6789012345678901234567890123456789012345",
-        );
-        env::set_var(
-            ENV_AUXILIARY_VALIDATOR_ADDRESS,
-            "1234567890123456789012345678901234567890",
-        );
-
-        let config = Config::new();
-        assert_eq!(
-            config.origin_endpoint,
-            DEFAULT_ORIGIN_ENDPOINT.to_owned(),
-            "Did not set the default origin endpoint when no ENV var set.",
-        );
-        assert_eq!(
-            config.auxiliary_endpoint,
-            DEFAULT_AUXILIARY_ENDPOINT.to_owned(),
-            "Did not set the default auxiliary endpoint when no ENV var set.",
-        );
-
         env::remove_var(ENV_ORIGIN_VALIDATOR_ADDRESS);
         env::remove_var(ENV_AUXILIARY_VALIDATOR_ADDRESS);
     }
