@@ -14,7 +14,6 @@
 
 //! This module implements the Error struct and its methods.
 
-use std;
 use std::fmt;
 
 /// An Error represents any error that appears during the interaction with a blockchain.
@@ -31,28 +30,21 @@ impl Error {
     }
 }
 
+/// The kinds of errors that can appear.
 #[derive(Debug)]
 pub enum ErrorKind {
     InvalidAddress,
+    InvalidBlock,
     InvalidBytes,
     InvalidSignature,
     NodeError,
-}
-
-impl std::error::Error for Error {
-    fn description(&self) -> &str {
-        "A blockchain error occurred."
-    }
-
-    fn cause(&self) -> Option<&std::error::Error> {
-        None
-    }
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.kind {
             ErrorKind::InvalidAddress => write!(f, "Not a valid address!").unwrap(),
+            ErrorKind::InvalidBlock => write!(f, "Not a valid block!").unwrap(),
             ErrorKind::InvalidBytes => write!(f, "Not valid bytes!").unwrap(),
             ErrorKind::InvalidSignature => write!(f, "Not a valid signature!").unwrap(),
             ErrorKind::NodeError => write!(f, "Error on blockchain node!").unwrap(),

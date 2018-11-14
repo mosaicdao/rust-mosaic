@@ -15,41 +15,54 @@
 //! This module implements the Bytes struct and its methods.
 
 use blockchain::types::error::{Error, ErrorKind};
+use std::str::FromStr;
 
 /// A wrapper for bytes.
 #[derive(PartialEq, Eq, Default, Clone, Debug)]
-pub struct Bytes(Vec<u8>);
+pub struct Bytes(pub Vec<u8>);
 
 impl Bytes {
-    /// Creates a bytes object from a string in hex format.
+    /// Returns the underlying `u8` vector of this `Bytes` object.
+    pub fn bytes(&self) -> Vec<u8> {
+        self.0.clone()
+    }
+}
+
+impl From<Vec<u8>> for Bytes {
+    /// Converts a vector of `u8`s into a `Bytes` object.
+    fn from(vector: Vec<u8>) -> Bytes {
+        Bytes { 0: vector }
+    }
+}
+
+impl FromStr for Bytes {
+    type Err = Error;
+
+    /// Parses a string into a `Bytes` object.
+    /// Any leading `0x` is automatically removed.
     ///
-    /// *Arguments*
-    ///
-    /// * `string` - A String in hex format that represents bytes.
-    ///              Must be at least two characters long and a multiple of two.
-    ///              Any leading `0x` will be removed.
-    pub fn from_string(string: &str) -> Result<Self, Error> {
-        if string.len() < 2 {
-            return Err(Error::new(
-                ErrorKind::InvalidBytes,
-                "String must be at least two characters long to be converted to Bytes".to_string(),
-            ));
+    /// The string must have an even length and each pair of two characters must be parsable from
+    /// hex into `u8`.
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        let mut cleaned = &string[..];
+        cleaned = cleaned.trim();
+
+        // Cut leading "0x" if present.
+        if &cleaned[..2] == "0x" {
+            cleaned = &cleaned[2..];
         }
 
-        if string.len() % 2 != 0 {
+        // Empty string leads to empty vector.
+        if cleaned.is_empty() {
+            return Ok(Bytes(vec![]));
+        }
+
+        if cleaned.len() % 2 != 0 {
             return Err(Error::new(
                 ErrorKind::InvalidBytes,
                 "String must be a multiple of two characters long to be converted to Bytes"
                     .to_string(),
             ));
-        }
-
-        let mut cleaned = &string[..];
-        cleaned = cleaned.trim();
-
-        // cut leading "0x" if present
-        if &cleaned[..2] == "0x" {
-            cleaned = &cleaned[2..];
         }
 
         // Convert byte by byte.
@@ -75,11 +88,6 @@ impl Bytes {
 
         Ok(Bytes(bytes))
     }
-
-    /// Returns the vector representation of these.
-    pub fn bytes(&self) -> Vec<u8> {
-        self.0.clone()
-    }
 }
 
 #[cfg(test)]
@@ -88,50 +96,68 @@ mod test {
 
     #[test]
     fn bytes_from_string() {
-        let mut bytes = Bytes::from_string("0000000000000000000000000000000000000000").unwrap();
+        let mut bytes = "0000000000000000000000000000000000000000"
+            .parse::<Bytes>()
+            .unwrap();
         assert_eq!(
             format!("{:?}", bytes),
             "Bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])"
         );
 
-        bytes = Bytes::from_string("0000000000000000000000000000000000000001").unwrap();
+        bytes = "0000000000000000000000000000000000000001"
+            .parse::<Bytes>()
+            .unwrap();
         assert_eq!(
             format!("{:?}", bytes),
             "Bytes([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1])"
         );
 
-        bytes = Bytes::from_string("0x1000000000000000000000000000000000000000").unwrap();
+        bytes = "0x1000000000000000000000000000000000000000"
+            .parse::<Bytes>()
+            .unwrap();
         assert_eq!(
             format!("{:?}", bytes),
             "Bytes([16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])"
         );
 
-        bytes = Bytes::from_string("0x123456789abcdef01234123456789abcdef01234").unwrap();
+        bytes = "0x123456789abcdef01234123456789abcdef01234"
+            .parse::<Bytes>()
+            .unwrap();
         assert_eq!(
             format!("{:?}", bytes),
             "Bytes([18, 52, 86, 120, 154, 188, 222, 240, 18, 52, 18, 52, 86, 120, 154, 188, 222, 240, 18, 52])"
         );
 
-        bytes = Bytes::from_string("0x123456789ABCDEF01234123456789abcdef01234").unwrap();
+        bytes = "0x123456789ABCDEF01234123456789abcdef01234"
+            .parse::<Bytes>()
+            .unwrap();
         assert_eq!(
             format!("{:?}", bytes),
             "Bytes([18, 52, 86, 120, 154, 188, 222, 240, 18, 52, 18, 52, 86, 120, 154, 188, 222, 240, 18, 52])"
         );
 
-        let mut result = Bytes::from_string("0x123456789ABCDEF01234123456789abcdef");
+        let mut result = "0x123456789ABCDEF01234123456789abcdef".parse::<Bytes>();
         assert!(result.is_err());
-        result = Bytes::from_string("0x123456789ABCDEF01234123456789abcdef0123412345");
+        result = "0x123456789ABCDEF01234123456789abcdef0123412345".parse::<Bytes>();
         assert!(result.is_err());
-        result = Bytes::from_string("0x123456789ABCDEF01234123456789abcdef01234123k");
+        result = "0x123456789ABCDEF01234123456789abcdef01234123k".parse::<Bytes>();
         assert!(result.is_err());
     }
 
     #[test]
     fn equality() {
-        let bytes_one = Bytes::from_string("0000000000000000000000000000000000000012").unwrap();
-        let bytes_two = Bytes::from_string("0000000000000000000000000000000000000012").unwrap();
-        let bytes_three = Bytes::from_string("0000000000000000000000000000000000000034").unwrap();
-        let bytes_four = Bytes::from_string("00000000000000000000000000000000000012").unwrap();
+        let bytes_one = "0000000000000000000000000000000000000012"
+            .parse::<Bytes>()
+            .unwrap();
+        let bytes_two = "0000000000000000000000000000000000000012"
+            .parse::<Bytes>()
+            .unwrap();
+        let bytes_three = "0000000000000000000000000000000000000034"
+            .parse::<Bytes>()
+            .unwrap();
+        let bytes_four = "00000000000000000000000000000000000012"
+            .parse::<Bytes>()
+            .unwrap();
 
         assert!(bytes_one == bytes_two);
         assert!(bytes_one != bytes_three);

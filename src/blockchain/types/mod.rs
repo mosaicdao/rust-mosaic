@@ -15,6 +15,15 @@
 //! All the blockchain types that we interact with.
 
 pub mod address;
+pub mod basic_types;
+pub mod block;
 pub mod bytes;
 pub mod error;
 pub mod signature;
+
+pub use self::address::*;
+pub use self::basic_types::*;
+pub use self::block::*;
+pub use self::bytes::*;
+pub use self::error::*;
+pub use self::signature::*;

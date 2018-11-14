@@ -14,23 +14,33 @@
 
 //! This module implements the connection to an Ethereum blockchain.
 
+use blockchain::*;
 use rpassword;
-use web3::futures::Future;
-use web3::transports::{EventLoopHandle, Http};
-use web3::types::{H160, H520};
+use std::time::Duration;
+use web3::transports::Http;
+use web3::types::Block as Web3Block;
+use web3::types::H256 as Web3H256;
+use web3::types::U128 as Web3U128;
+use web3::types::U256 as Web3U256;
+use web3::types::{BlockId, H160, H520};
 use web3::Web3;
 
-use blockchain::types::address::{Address, AsAddress, FromAddress};
-use blockchain::types::bytes::Bytes;
-use blockchain::types::error::{Error, ErrorKind};
-use blockchain::types::signature::{AsSignature, Signature};
-
 /// This struct stores a connection to an Ethereum node.
+#[derive(Clone)]
 pub struct Ethereum {
     web3: Web3<Http>,
     validator: Address,
+    /// The password to unlock the validator account on the node.
     password: String,
-    _event_loop: EventLoopHandle,
+    /// The polling interval defines the duration in between two calls to the node to poll for new
+    /// blocks.
+    polling_interval: Duration,
+    /// A handle to the event loop that runs mosaic.
+    event_loop: Box<tokio_core::reactor::Handle>,
+}
+
+trait IntoBlock {
+    fn into_block(&self) -> Result<Block, Error>;
 }
 
 impl Ethereum {
@@ -39,16 +49,18 @@ impl Ethereum {
     ///
     /// # Arguments
     ///
-    /// * `address` - The address of an ethereum node.
+    /// * `endpoint` - The address of an ethereum node.
     /// * `validator` - The address of the validator to sign and send messages from.
-    pub fn new(address: &str, validator: Address) -> Result<Self, Error> {
-        let (event_loop, http) = match Http::new(address) {
-            Ok((event_loop, http)) => (event_loop, http),
-            Err(error) => {
-                error!("Could not connect to ethereum: {}", error);
-                return Err(Error::new(ErrorKind::NodeError, error.to_string()));
-            }
-        };
+    /// * `polling_interval` - The duration in between two calls to the node to poll for new blocks.
+    /// * `event_loop` - A handle to the event loop that runs mosaic.
+    pub fn new(
+        endpoint: &str,
+        validator: Address,
+        polling_interval: Duration,
+        event_loop: Box<tokio_core::reactor::Handle>,
+    ) -> Self {
+        let http = Http::with_event_loop(endpoint, &event_loop, 5)
+            .expect("Could not initialize ethereum HTTP connection");
         let web3 = Web3::new(http);
 
         let password = rpassword::prompt_password_stdout(&format!(
@@ -56,33 +68,89 @@ impl Ethereum {
             &validator,
         )).unwrap();
 
-        let ethereum = Ethereum {
+        Ethereum {
             web3,
             validator,
             password,
-            _event_loop: event_loop,
-        };
+            polling_interval,
+            event_loop,
+        }
+    }
 
-        ethereum.unlock_account();
+    /// Stream blocks returns a `futures::stream::Stream` of `Block`s.
+    ///
+    /// Converts a stream of web3 blocks to a stream of blocks.
+    ///
+    /// It is the caller's responsibility to poll the stream, e.g. call `for_each` and put the
+    /// future into a reactor.
+    pub fn stream_blocks(&self) -> impl Stream<Item = Block, Error = Error> {
+        // Blocks filter is a future that returns a filter.
+        let blocks_filter = self.web3.eth_filter().create_blocks_filter();
 
-        Ok(ethereum)
+        // Block hashes is a stream of block hashes.
+        let polling_interval = self.polling_interval;
+        let block_hashes = blocks_filter
+            .map(move |filter| filter.stream(polling_interval))
+            .flatten_stream();
+
+        // Web3 blocks is a stream of block futures, mapped from a stream of block hashes.
+        let web3_clone = self.web3.clone();
+        let web3_blocks = block_hashes
+            .map_err(|error| {
+                Error::new(
+                    ErrorKind::NodeError,
+                    format!("Error while streaming blocks from node: {}", error),
+                )
+            }).and_then(move |block_hash| {
+                web3_clone
+                    .eth()
+                    .block(BlockId::from(block_hash))
+                    .map_err(|error| {
+                        Error::new(
+                            ErrorKind::NodeError,
+                            format!("Was not able to retrieve block: {}", error),
+                        )
+                    })
+            });
+
+        // Returns a stream of blocks, mapped from a stream of web3 block futures.
+        web3_blocks.and_then(|web3_block| match web3_block {
+            // Mapping web3 block Option to a Block.
+            // Wrapping in Ok() as it has to return an IntoFuture.
+            Some(web3_block) => match web3_block.into_block() {
+                Ok(block) => Ok(block),
+                Err(error) => Err(Error::new(
+                    ErrorKind::NodeError,
+                    format!("Could not convert block from web3: {}", error),
+                )),
+            },
+            None => Err(Error::new(
+                ErrorKind::NodeError,
+                "No block found".to_string(),
+            )),
+        })
     }
 
     /// Uses web3 to retrieve the accounts.
     /// Converts them to blockchain addresses and returns all addresses in a
     /// vector.
-    pub fn get_accounts(&self) -> Vec<Address> {
-        let addresses = self.web3.eth().accounts().wait().unwrap();
-        let mut v = Vec::new();
+    pub fn get_accounts(&self) -> impl Future<Item = Vec<Address>, Error = Error> {
+        self.web3
+            .eth()
+            .accounts()
+            .map_err(|error| {
+                Error::new(
+                    ErrorKind::NodeError,
+                    format!("Was not able to retrieve accounts: {}", error),
+                )
+            }).map(|addresses| {
+                let mut v = Vec::new();
+                for h160 in addresses {
+                    v.push(h160.into())
+                }
 
-        for h160 in addresses {
-            match h160.as_address() {
-                Ok(address) => v.push(address),
-                Err(error) => warn!("Unable to convert h160 to address: {}", error),
-            }
-        }
-
-        v
+                v
+            })
     }
 
     /// Uses web3 to sign the given data.
@@ -90,70 +158,132 @@ impl Ethereum {
     ///
     /// # Arguments
     ///
-    /// `data` - The data to sign.
+    /// * `data` - The data to sign.
     ///
     /// # Returns
     ///
     /// Returns a `Signature` of the signed data.
-    pub fn sign(&self, data: &Bytes) -> Result<Signature, Error> {
-        let h520 = self
-            .web3
-            .eth()
-            .sign(
-                H160::from_address(&self.validator),
-                web3::types::Bytes(data.bytes()),
-            ).wait()
-            .unwrap();
+    pub fn sign(&self, data: Bytes) -> impl Future<Item = Signature, Error = Error> {
+        let web3_clone = self.web3.clone();
+        let validator = self.validator;
 
-        h520.as_signature()
+        let signature_future = self.unlock_account(None).and_then(move |_| {
+            web3_clone
+                .eth()
+                .sign(validator.into(), web3::types::Bytes(data.bytes().clone()))
+                .map_err(|error| {
+                    Error::new(
+                        ErrorKind::NodeError,
+                        format!("Was not able to sign data: {}", error),
+                    )
+                })
+        });
+
+        signature_future.map(|web3_signature| {
+            let signature: Signature = web3_signature.into();
+            signature
+        })
     }
 
     /// Unlocks the validator account of this ethereum instance using the stored password.
-    /// Unlocks it for the maximum amount of ca. 18 hours.
+    ///
+    /// # Arguments
+    ///
+    /// * `duration` - If given, will unlock for the duration in seconds. Otherwise for a single
+    /// transaction.
     ///
     /// # Panics
     ///
     /// Panics if it cannot unlock the account.
-    fn unlock_account(&self) {
-        let duration: u16 = 65535;
-
-        let unlocked = self
-            .web3
+    fn unlock_account(&self, duration: Option<u16>) -> impl Future<Item = bool, Error = Error> {
+        self.web3
             .personal()
-            .unlock_account(
-                H160::from_address(&self.validator),
-                &self.password,
-                Some(duration),
-            ).wait()
-            .expect("Could not unlock account on ethereum node");
-
-        if unlocked {
-            info!("Unlocked account {:x}", &self.validator);
-        } else {
-            panic!("Could not unlock account {:x}", &self.validator);
-        }
+            .unlock_account(self.validator.into(), &self.password, duration)
+            .map_err(|error| {
+                Error::new(
+                    ErrorKind::NodeError,
+                    format!("Was not able to unlock account: {}", error),
+                )
+            })
     }
 }
 
-impl AsAddress for H160 {
-    /// Converts an H160 type to an Address.
-    /// The address's bytes will be a copy of H160.
-    fn as_address(&self) -> Result<Address, Error> {
-        Address::from_bytes(&self[..])
-    }
-}
-
-impl FromAddress for H160 {
+impl From<Address> for H160 {
     /// Creates an H160 type from an address.
     /// H160 will equal the address's bytes.
-    fn from_address(address: &Address) -> Self {
-        H160::from(address.bytes())
+    fn from(address: Address) -> H160 {
+        let bytes: [u8; 20] = address.into();
+        H160::from(bytes)
     }
 }
 
-impl AsSignature for H520 {
-    fn as_signature(&self) -> Result<Signature, Error> {
-        Signature::from_bytes(&self[..])
+impl From<H160> for Address {
+    /// Converts an H160 type to an Address.
+    /// The address's bytes will be a copy of H160.
+    fn from(h160: H160) -> Address {
+        h160.0.into()
+    }
+}
+
+impl From<Web3H256> for H256 {
+    /// Converts a web3 H256 into an `H256`.
+    fn from(h256: Web3H256) -> H256 {
+        h256.0.into()
+    }
+}
+
+impl From<Web3U128> for U128 {
+    /// Converts a web3 U128 into a `U128`.
+    fn from(u128: Web3U128) -> U128 {
+        u128.0.into()
+    }
+}
+
+impl From<Web3U256> for U256 {
+    /// Converts a web3 U256 into a `U256`.
+    fn from(u256: Web3U256) -> U256 {
+        u256.0.into()
+    }
+}
+
+impl From<H520> for Signature {
+    /// Converts a web3 H520 into a `Signature`.
+    fn from(h520: H520) -> Signature {
+        Signature { 0: h520.0 }
+    }
+}
+
+impl<TX> IntoBlock for Web3Block<TX> {
+    /// Tries to convert a web3 block into a `Block`.
+    ///
+    /// Fails if mandatory fields are missing.
+    fn into_block(&self) -> Result<Block, Error> {
+        Ok(Block {
+            hash: match self.hash {
+                Some(hash) => hash.into(),
+                None => {
+                    return Err(Error::new(
+                        ErrorKind::InvalidBlock,
+                        "Block has no hash".to_string(),
+                    ));
+                }
+            },
+            parent_hash: self.parent_hash.into(),
+            state_root: self.state_root.into(),
+            transactions_root: self.transactions_root.into(),
+            number: match self.number {
+                Some(number) => number.into(),
+                None => {
+                    return Err(Error::new(
+                        ErrorKind::InvalidBlock,
+                        "Block has no number".to_string(),
+                    ))
+                }
+            },
+            gas_used: self.gas_used.into(),
+            gas_limit: self.gas_limit.into(),
+            timestamp: self.timestamp.into(),
+        })
     }
 }
 
@@ -164,62 +294,50 @@ mod test {
     #[test]
     fn test_h160_to_address() {
         let mut bytes = [0u8; 20];
-        assert_eq!(
-            "0000000000000000000000000000000000000000"
-                .parse::<H160>()
-                .unwrap()
-                .as_address()
-                .unwrap(),
-            Address::from_bytes(&bytes[..]).unwrap()
-        );
+        let address: Address = "0000000000000000000000000000000000000000"
+            .parse::<H160>()
+            .unwrap()
+            .into();
+        assert_eq!(address, bytes.into());
 
         bytes[19] = 10u8;
-        assert_eq!(
-            "000000000000000000000000000000000000000a"
-                .parse::<H160>()
-                .unwrap()
-                .as_address()
-                .unwrap(),
-            Address::from_bytes(&bytes[..]).unwrap()
-        );
+        let address: Address = "000000000000000000000000000000000000000a"
+            .parse::<H160>()
+            .unwrap()
+            .into();
+        assert_eq!(address, bytes.into());
 
         bytes[0] = 1u8;
-        assert_eq!(
-            "010000000000000000000000000000000000000a"
-                .parse::<H160>()
-                .unwrap()
-                .as_address()
-                .unwrap(),
-            Address::from_bytes(&bytes[..]).unwrap()
-        );
+        let address: Address = "010000000000000000000000000000000000000a"
+            .parse::<H160>()
+            .unwrap()
+            .into();
+        assert_eq!(address, bytes.into());
     }
 
     #[test]
     fn test_h160_from_address() {
         let mut bytes = [0u8; 20];
+        let address: Address = bytes.into();
+        let h160: H160 = address.into();
         assert_eq!(
-            format!(
-                "{:#?}",
-                H160::from_address(&Address::from_bytes(&bytes[..]).unwrap())
-            ),
+            format!("{:#?}", h160),
             "0x0000000000000000000000000000000000000000"
         );
 
         bytes[19] = 10u8;
+        let address: Address = bytes.into();
+        let h160: H160 = address.into();
         assert_eq!(
-            format!(
-                "{:#?}",
-                H160::from_address(&Address::from_bytes(&bytes[..]).unwrap())
-            ),
+            format!("{:#?}", h160),
             "0x000000000000000000000000000000000000000a"
         );
 
         bytes[0] = 1u8;
+        let address: Address = bytes.into();
+        let h160: H160 = address.into();
         assert_eq!(
-            format!(
-                "{:#?}",
-                H160::from_address(&Address::from_bytes(&bytes[..]).unwrap())
-            ),
+            format!("{:#?}", h160),
             "0x010000000000000000000000000000000000000a"
         );
     }

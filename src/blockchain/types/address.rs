@@ -12,48 +12,51 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! This module implements the Address struct and its methods.
+//! An address represents the address of an external account or contract on a blockchain.
 
 use blockchain::types::error::{Error, ErrorKind};
-use std::fmt;
-use std::fmt::{Debug, Formatter, LowerHex};
+use std::fmt::{self, Debug, Formatter, LowerHex};
+use std::str::FromStr;
 
-/// An Address is represented by a 20-bytes address.
+/// An Address is represented by an array of 20 `u8`-bytes.
 #[derive(PartialEq, Eq, Default, Clone, Copy)]
-pub struct Address([u8; 20]);
+pub struct Address(pub [u8; 20]);
 
 impl Address {
-    /// Creates an address with the address given as 20 bytes.
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
-        if bytes.len() != 20 {
-            return Err(Error::new(
-                ErrorKind::InvalidAddress,
-                format!(
-                    "Address must have exactly 20 bytes. Got {} instead: {:?}",
-                    bytes.len(),
-                    bytes,
-                ),
-            ));
-        }
-
-        let mut bytes_array = [0u8; 20];
-        for (index, byte) in bytes.into_iter().enumerate() {
-            bytes_array[index] = *byte;
-        }
-        Ok(Address(bytes_array))
+    /// Returns the underlying bytes array of the `Address`.
+    pub fn bytes(&self) -> [u8; 20] {
+        self.0
     }
+}
 
-    /// Creates an address from a string in hex format of the address.
+impl From<[u8; 20]> for Address {
+    /// Converts an array of bytes into an `Address`.
+    fn from(bytes: [u8; 20]) -> Address {
+        Address { 0: bytes }
+    }
+}
+
+impl From<Address> for [u8; 20] {
+    /// Converts an `Address` to its underlying array of bytes.
+    fn from(address: Address) -> [u8; 20] {
+        address.bytes()
+    }
+}
+
+impl FromStr for Address {
+    type Err = Error;
+
+    /// Parses a string into an `Address`.
+    /// Returns either an `Address` or an error if the string could not be converted.
     ///
-    /// *Arguments*
-    ///
-    /// * `string` - A String in hex format that represents 20 bytes.
-    ///              Must be exactly 40 characters long. Any leading `0x` will be removed.
-    pub fn from_string(string: &str) -> Result<Self, Error> {
-        let mut cleaned = &string.to_string()[..];
+    /// If the string has leading `0x`, then that is automatically removed. Afterwards, the string
+    /// must be exactly 40 characters long and each pair of two characters must be parsable from hex
+    /// into a `u8`.
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut cleaned = s;
         cleaned = cleaned.trim();
 
-        // cut leading "0x" if present
+        // Cut leading "0x" if present.
         if &cleaned[..2] == "0x" {
             cleaned = &cleaned[2..];
         }
@@ -92,19 +95,14 @@ impl Address {
             index += 1;
         }
 
-        Ok(Address(bytes))
-    }
-
-    /// Returns the bytes representation of this address.
-    pub fn bytes(&self) -> [u8; 20] {
-        self.0
+        Ok(bytes.into())
     }
 }
 
 impl LowerHex for Address {
     /// Writes the bytes as hex with leading zeros to the given Formatter.
     fn fmt(&self, f: &mut Formatter) -> Result<(), fmt::Error> {
-        for byte in &self.bytes() {
+        for byte in self.bytes().iter() {
             write!(f, "{:02x}", byte)?;
         }
 
@@ -113,21 +111,12 @@ impl LowerHex for Address {
 }
 
 impl Debug for Address {
-    /// Debug format is lower hex.
+    /// Debug format equals lower hex.
     fn fmt(&self, f: &mut Formatter) -> Result<(), fmt::Error> {
         write!(f, "{:x}", self)?;
 
         Ok(())
     }
-}
-
-// Converting other types to and from Addresses
-pub trait AsAddress {
-    fn as_address(&self) -> Result<Address, Error>;
-}
-
-pub trait FromAddress {
-    fn from_address(address: &Address) -> Self;
 }
 
 #[cfg(test)]
@@ -136,60 +125,70 @@ mod test {
 
     #[test]
     fn address_from_string() {
-        let mut address = Address::from_string("0000000000000000000000000000000000000000").unwrap();
+        let mut address = "0000000000000000000000000000000000000000"
+            .parse::<Address>()
+            .unwrap();
         assert_eq!(
             format!("{:x}", address),
             "0000000000000000000000000000000000000000"
         );
 
-        address = Address::from_string("0000000000000000000000000000000000000001").unwrap();
+        address = "0000000000000000000000000000000000000001"
+            .parse::<Address>()
+            .unwrap();
         assert_eq!(
             format!("{:x}", address),
             "0000000000000000000000000000000000000001"
         );
 
-        address = Address::from_string("0x1000000000000000000000000000000000000000").unwrap();
+        address = "0x1000000000000000000000000000000000000000"
+            .parse::<Address>()
+            .unwrap();
         assert_eq!(
             format!("{:x}", address),
             "1000000000000000000000000000000000000000"
         );
 
-        address = Address::from_string("0x123456789abcdef01234123456789abcdef01234").unwrap();
+        address = "0x123456789abcdef01234123456789abcdef01234"
+            .parse::<Address>()
+            .unwrap();
         assert_eq!(
             format!("{:x}", address),
             "123456789abcdef01234123456789abcdef01234"
         );
 
-        address = Address::from_string("0x123456789ABCDEF01234123456789abcdef01234").unwrap();
+        address = "0x123456789ABCDEF01234123456789abcdef01234"
+            .parse::<Address>()
+            .unwrap();
         assert_eq!(
             format!("{:x}", address),
             "123456789abcdef01234123456789abcdef01234"
         );
 
-        let mut result = Address::from_string("0x123456789ABCDEF01234123456789abcdef");
+        let mut result = "0x123456789ABCDEF01234123456789abcdef".parse::<Address>();
         assert!(result.is_err());
-        result = Address::from_string("0x123456789ABCDEF01234123456789abcdef012341234");
+        result = "0x123456789ABCDEF01234123456789abcdef012341234".parse::<Address>();
         assert!(result.is_err());
     }
 
     #[test]
     fn address_to_lower_hex() {
         let mut bytes = [0u8; 20];
-        let address = Address::from_bytes(&bytes[..]).unwrap();
+        let address: Address = bytes.into();
         assert_eq!(
             format!("{:x}", address),
             "0000000000000000000000000000000000000000"
         );
 
         bytes[0] = 1u8;
-        let address = Address::from_bytes(&bytes[..]).unwrap();
+        let address: Address = bytes.into();
         assert_eq!(
             format!("{:x}", address),
             "0100000000000000000000000000000000000000"
         );
 
         bytes[19] = 18u8;
-        let address = Address::from_bytes(&bytes[..]).unwrap();
+        let address: Address = bytes.into();
         assert_eq!(
             format!("{:x}", address),
             "0100000000000000000000000000000000000012"
@@ -199,13 +198,13 @@ mod test {
     #[test]
     fn equality() {
         let bytes = [4u8; 20];
-        let address_one = Address::from_bytes(&bytes[..]).unwrap();
+        let address_one: Address = bytes.into();
 
         let bytes = [4u8; 20];
-        let address_two = Address::from_bytes(&bytes[..]).unwrap();
+        let address_two: Address = bytes.into();
 
         let bytes = [5u8; 20];
-        let address_three = Address::from_bytes(&bytes[..]).unwrap();
+        let address_three: Address = bytes.into();
 
         assert!(address_one == address_two);
         assert!(address_one != address_three);
