@@ -13,17 +13,27 @@
 // limitations under the License.
 
 //! Basic types are hashes and numbers.
+//!
+//! Most big numbers are represented as arrays of primitive types. For example, `U128` is
+//! represented as [u64; 2]. In that case, the `0` index of the array is the lower numbers and the
+//! `1` index is the higher numbers. This means a decimal `1` would be represented as `[1, 0]`.
 
 use std::fmt::{self, Formatter, LowerHex};
 
 /// H256 is a 256-bit hash.
-#[derive(Debug)]
+#[derive(Debug, Copy, PartialEq)]
 pub struct H256(pub [u8; 32]);
 
 impl H256 {
     /// Returns the underlying `u8` array.
     pub fn bytes(&self) -> [u8; 32] {
         self.0
+    }
+}
+
+impl Clone for H256 {
+    fn clone(&self) -> H256 {
+        *self
     }
 }
 
@@ -46,7 +56,7 @@ impl LowerHex for H256 {
 }
 
 /// U128 is a 128-bit unsigned integer.
-#[derive(Debug)]
+#[derive(Debug, Copy, PartialEq)]
 pub struct U128(pub [u64; 2]);
 
 impl U128 {
@@ -56,10 +66,27 @@ impl U128 {
     }
 }
 
+impl Clone for U128 {
+    fn clone(&self) -> U128 {
+        *self
+    }
+}
+
 impl From<[u64; 2]> for U128 {
     /// Converts a `u64` array of 2 items into a `U128`.
     fn from(bytes: [u64; 2]) -> Self {
         Self { 0: bytes }
+    }
+}
+
+impl From<U128> for u64 {
+    /// Tries to convert a U128 to a u64. Panics on overflow.
+    fn from(u128: U128) -> u64 {
+        if u128.0[1] != 0 {
+            panic!("Overflow when converting U128 to u64.");
+        }
+
+        u128.0[0]
     }
 }
 
@@ -75,13 +102,19 @@ impl LowerHex for U128 {
 }
 
 /// U256 is a 256-bit unsigned integer.
-#[derive(Debug)]
+#[derive(Debug, Copy, PartialEq)]
 pub struct U256(pub [u64; 4]);
 
 impl U256 {
     /// Returns the underlying `u64` array.
     pub fn bytes(&self) -> [u64; 4] {
         self.0
+    }
+}
+
+impl Clone for U256 {
+    fn clone(&self) -> U256 {
+        *self
     }
 }
 
