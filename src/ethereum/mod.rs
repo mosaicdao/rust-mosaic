@@ -14,13 +14,16 @@
 
 //! This module implements the connection to an Ethereum blockchain.
 
-use ethereum::types::{Block, Error, ErrorKind, Event, Signature};
+pub use self::types::{Block, Signature};
+use error::{Error, ErrorKind};
 use futures::prelude::*;
+use observer::EventHandler;
 use rpassword;
+use std::sync::Arc;
 use std::time::Duration;
 use web3::transports::Http;
 use web3::types::Block as Web3Block;
-use web3::types::{Address, BlockId, BlockNumber, Bytes, FilterBuilder, Log, H160};
+use web3::types::{Address, BlockId, BlockNumber, Bytes, FilterBuilder, H160};
 use web3::Web3;
 
 mod types;
@@ -40,6 +43,8 @@ pub struct Ethereum {
 }
 
 trait IntoBlock {
+    /// Tries to convert itself into a `Block`. Returns a result, depending on whether the
+    /// conversion was successful.
     fn into_block(&self) -> Result<Block, Error>;
 }
 
@@ -80,10 +85,19 @@ impl Ethereum {
     /// Stream blocks returns a `futures::stream::Stream` of `Block`s.
     ///
     /// Converts a stream of web3 blocks to a stream of blocks.
+    /// The blocks contain events that were parsed from the logs based on the registered events in
+    /// the event handler.
     ///
     /// It is the caller's responsibility to poll the stream, e.g. call `for_each` and put the
     /// future into a reactor.
-    pub fn stream_blocks(&self) -> impl Stream<Item = Block, Error = Error> {
+    ///
+    /// # Arguments
+    ///
+    /// * `event_handler` - A handler that converts raw logs from the web3 blocks into events.
+    pub fn stream_blocks(
+        &self,
+        event_handler: Arc<EventHandler>,
+    ) -> impl Stream<Item = Block, Error = Error> {
         // Blocks filter is a future that returns a filter.
         let blocks_filter = self.web3.eth_filter().create_blocks_filter();
 
@@ -94,7 +108,7 @@ impl Ethereum {
             .flatten_stream();
 
         // Web3 blocks is a stream of block futures, mapped from a stream of block hashes.
-        let web3_clone = self.web3.clone();
+        let web3 = self.web3.clone();
         let web3_blocks = block_hashes
             .map_err(|error| {
                 Error::new(
@@ -102,8 +116,7 @@ impl Ethereum {
                     format!("Error while streaming blocks from node: {}", error),
                 )
             }).and_then(move |block_hash| {
-                web3_clone
-                    .eth()
+                web3.eth()
                     .block(BlockId::from(block_hash))
                     .map_err(|error| {
                         Error::new(
@@ -131,8 +144,12 @@ impl Ethereum {
         });
 
         // Get all events for that block from the node and add them to the block struct.
-        let web3_clone = self.web3.clone();
+        let web3 = self.web3.clone();
         blocks.and_then(move |mut block| {
+            // The block number expects a `u64` as argument. `U128` cannot be safely cast to a
+            // `u64`, because it is twice as long. `u64`'s max value `18446744073709551615` is
+            // probably sufficient for the block number. So that would be the `U128`'s *lower* of
+            // the two 64 bit unsigned integers (`low_u64`).
             let block_number: u64 = block.number.low_u64();
             let block_number = BlockNumber::from(block_number);
 
@@ -143,17 +160,28 @@ impl Ethereum {
                 .to_block(block_number)
                 .build();
 
-            web3_clone
-                .eth()
+            let event_handler = Arc::clone(&event_handler);
+            web3.eth()
                 .logs(log_filter)
                 .map_err(|error| {
                     Error::new(
                         ErrorKind::NodeError,
                         format!("Error while retrieving logs from node: {}", error),
                     )
-                }).map(|logs| {
+                }).map(move |logs| {
                     for log in logs {
-                        block.events.push(log.into());
+                        match event_handler.log_into_event(&log) {
+                            // We are not interested in the case where there is no error and
+                            // Ok(None) returned. It simply means that the log did not match any
+                            // registered event in the event handler.
+                            // So we only act if we got some event in the Ok case.
+                            Ok(event) => if let Some(event) = event {
+                                block.events.push(event);
+                            },
+                            Err(error) => {
+                                warn!("Was not able to convert a log into an event: {}", error)
+                            }
+                        }
                     }
 
                     block
@@ -217,24 +245,6 @@ impl Ethereum {
                     format!("Was not able to unlock account: {}", error),
                 )
             })
-    }
-}
-
-impl From<Log> for Event {
-    fn from(log: Log) -> Event {
-        Event {
-            address: log.address,
-            topics: log.topics,
-            data: log.data,
-            block_hash: log.block_hash,
-            block_number: log.block_number,
-            transaction_hash: log.transaction_hash,
-            transaction_index: log.transaction_index,
-            log_index: log.log_index,
-            transaction_log_index: log.transaction_log_index,
-            log_type: log.log_type,
-            removed: log.removed,
-        }
     }
 }
 

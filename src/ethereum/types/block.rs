@@ -14,8 +14,9 @@
 
 //! This module covers blocks.
 
+use observer::Event;
 use std::fmt::{self, Display, Formatter};
-use web3::types::{Address, Bytes, H256, U128, U256};
+use web3::types::{H256, U128, U256};
 
 /// A block represents a block of a blockchain.
 #[derive(Debug)]
@@ -29,6 +30,7 @@ pub struct Block {
     pub gas_used: U256,
     pub gas_limit: U256,
     pub timestamp: U256,
+    /// Events as converted from the logs.
     pub events: Vec<Event>,
 }
 
@@ -38,18 +40,4 @@ impl Display for Block {
 
         Ok(())
     }
-}
-#[derive(Debug, Clone, PartialEq)]
-pub struct Event {
-    pub address: Address,
-    pub topics: Vec<H256>,
-    pub data: Bytes,
-    pub block_hash: Option<H256>,
-    pub block_number: Option<U256>,
-    pub transaction_hash: Option<H256>,
-    pub transaction_index: Option<U256>,
-    pub log_index: Option<U256>,
-    pub transaction_log_index: Option<U256>,
-    pub log_type: Option<String>,
-    pub removed: Option<bool>,
 }

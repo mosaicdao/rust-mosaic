@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Martin Schenck <martin@ost.com>"]
 
 [dependencies]
+ethabi = "^6.1.0"
 futures = "^0.1.25"
 log = "^0.4.3"
 rpassword = "^2.0.0"

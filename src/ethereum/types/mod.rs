@@ -15,10 +15,8 @@
 //! All the blockchain types that we interact with.
 
 pub mod block;
-pub mod error;
 
 pub use self::block::*;
-pub use self::error::*;
 use web3::types::H520;
 
 pub type Signature = H520;

@@ -25,6 +25,8 @@ const DEFAULT_ORIGIN_ENDPOINT: &str = "http://127.0.0.1:8545";
 const ENV_AUXILIARY_ENDPOINT: &str = "MOSAIC_AUXILIARY_ENDPOINT";
 const DEFAULT_AUXILIARY_ENDPOINT: &str = "http://127.0.0.1:8546";
 const ENV_ORIGIN_CORE_ADDRESS: &str = "MOSAIC_ORIGIN_CORE_ADDRESS";
+const ENV_ORIGIN_BLOCK_STORE_ADDRESS: &str = "MOSAIC_ORIGIN_BLOCK_STORE_ADDRESS";
+const ENV_AUXILIARY_BLOCK_STORE_ADDRESS: &str = "MOSAIC_AUXILIARY_BLOCK_STORE_ADDRESS";
 const ENV_ORIGIN_VALIDATOR_ADDRESS: &str = "MOSAIC_ORIGIN_VALIDATOR_ADDRESS";
 const ENV_AUXILIARY_VALIDATOR_ADDRESS: &str = "MOSAIC_AUXILIARY_VALIDATOR_ADDRESS";
 const ENV_ORIGIN_POLLING_INTERVAL: &str = "MOSAIC_ORIGIN_POLLING_INTERVAL";
@@ -39,14 +41,22 @@ pub struct Config {
     origin_endpoint: String,
     /// Address of the auxiliary chain, e.g. "127.0.0.1:8486"
     auxiliary_endpoint: String,
-    /// The address of a core address on origin.
+    /// The address of the core contract on origin.
     /// It is optional as it may not be needed depending on the mode that the node is run in.
     _origin_core_address: Option<Address>,
+    /// The address of the origin block store auxiliary.
+    /// It is optional as it may not be needed depending on the mode that the node is run in.
+    origin_block_store_address: Option<Address>,
+    /// The address of the auxiliary block store on auxiliary.
+    /// It is optional as it may not be needed depending on the mode that the node is run in.
+    auxiliary_block_store_address: Option<Address>,
     /// The address that is used to send messages as a validator on origin.
     origin_validator_address: Address,
     /// The address that is used to send messages as a validator on auxiliary.
     auxiliary_validator_address: Address,
+    /// The duration in between calls to origin to check for updates.
     origin_polling_interval: Duration,
+    /// The duration in between calls to auxiliary to check for updates.
     auxiliary_polling_interval: Duration,
 }
 
@@ -84,6 +94,26 @@ impl Config {
                     origin_core_address
                         .parse::<Address>()
                         .expect("The origin core address cannot be parsed"),
+                ),
+                None => None,
+            };
+
+        let origin_block_store_address =
+            match Self::read_environment_variable(ENV_ORIGIN_BLOCK_STORE_ADDRESS, None) {
+                Some(origin_block_store_address) => Some(
+                    origin_block_store_address
+                        .parse::<Address>()
+                        .expect("The origin block store address cannot be parsed"),
+                ),
+                None => None,
+            };
+
+        let auxiliary_block_store_address =
+            match Self::read_environment_variable(ENV_AUXILIARY_BLOCK_STORE_ADDRESS, None) {
+                Some(auxiliary_block_store_address) => Some(
+                    auxiliary_block_store_address
+                        .parse::<Address>()
+                        .expect("The auxiliary block store address cannot be parsed"),
                 ),
                 None => None,
             };
@@ -138,6 +168,8 @@ impl Config {
             origin_endpoint,
             auxiliary_endpoint,
             _origin_core_address: origin_core_address,
+            origin_block_store_address,
+            auxiliary_block_store_address,
             origin_validator_address,
             auxiliary_validator_address,
             origin_polling_interval,
@@ -190,6 +222,16 @@ impl Config {
         &self.auxiliary_endpoint
     }
 
+    /// Returns the address of the origin block store on auxiliary.
+    pub fn origin_block_store_address(&self) -> Option<Address> {
+        self.origin_block_store_address
+    }
+
+    /// Returns the address of the auxiliary block store on auxiliary.
+    pub fn auxiliary_block_store_address(&self) -> Option<Address> {
+        self.auxiliary_block_store_address
+    }
+
     /// Returns the origin validator address set on this config.
     pub fn origin_validator_address(&self) -> Address {
         self.origin_validator_address
@@ -200,10 +242,12 @@ impl Config {
         self.auxiliary_validator_address
     }
 
+    /// Returns the configured duration in between calls to the origin node.
     pub fn origin_polling_interval(&self) -> Duration {
         self.origin_polling_interval
     }
 
+    /// Returns the configured duration in between calls to the auxiliary node.
     pub fn auxiliary_polling_interval(&self) -> Duration {
         self.auxiliary_polling_interval
     }
@@ -228,6 +272,9 @@ mod test {
 
     #[test]
     fn the_config_reads_the_environment_variables() {
+        // Testing all cases in one test method so that there is no race condition between setting
+        // and removing env variables, as rust runs test methods in parallel.
+
         // Testing that the config falls back to the default values.
 
         // These must be set without a fallback. Mandatory.
@@ -252,19 +299,20 @@ mod test {
             "Did not set the default auxiliary endpoint when no ENV var set.",
         );
 
-        // Testing that set values are read.
-        // Testing both cases in one test method so that there is no race condition between setting
-        // and removing env variables, as rust runs test methods in parallel.
+        // Testing that optional values are optional.
 
-        let expected_origin_endpoint = "10.0.0.1";
-        env::set_var(ENV_ORIGIN_ENDPOINT, expected_origin_endpoint);
-
-        let config = Config::new();
         assert_eq!(
-            config.origin_endpoint, expected_origin_endpoint,
-            "Did not read the origin endpoint {}, but {} instead",
-            expected_origin_endpoint, config.origin_endpoint,
+            config.origin_block_store_address(),
+            None,
+            "The origin block store address should be none if not set.",
         );
+        assert_eq!(
+            config.auxiliary_block_store_address(),
+            None,
+            "The auxiliary block store address should be none if not set.",
+        );
+
+        // Testing that set values are read.
         assert_eq!(
             config.origin_validator_address(),
             "6789012345678901234567890123456789012345"
@@ -278,9 +326,15 @@ mod test {
                 .unwrap()
         );
 
-        env::set_var(ENV_ORIGIN_ENDPOINT, "10.0.0.1");
+        let expected_origin_endpoint = "10.0.0.1";
+        env::set_var(ENV_ORIGIN_ENDPOINT, expected_origin_endpoint);
+
         let config = Config::new();
-        assert_eq!(config.origin_endpoint, "10.0.0.1");
+        assert_eq!(
+            config.origin_endpoint, expected_origin_endpoint,
+            "Did not read the origin endpoint {}, but {} instead",
+            expected_origin_endpoint, config.origin_endpoint,
+        );
         // Assert also that it does not overwrite the wrong configuration value.
         assert_eq!(
             config.auxiliary_endpoint,
@@ -301,9 +355,75 @@ mod test {
             expected_auxiliary_endpoint, config.auxiliary_endpoint,
         );
 
+        // These should still be `None` before they are set.
+        assert_eq!(
+            config.origin_block_store_address(),
+            None,
+            "The origin block store address should be none if not set.",
+        );
+        assert_eq!(
+            config.auxiliary_block_store_address(),
+            None,
+            "The auxiliary block store address should be none if not set.",
+        );
+
+        let expected_origin_block_store_address = "a234567890123456789012345678901234567890";
+        env::set_var(
+            ENV_ORIGIN_BLOCK_STORE_ADDRESS,
+            expected_origin_block_store_address,
+        );
+        let config = Config::new();
+        assert_eq!(
+            config.origin_block_store_address(),
+            Some(
+                expected_origin_block_store_address
+                    .parse::<Address>()
+                    .unwrap()
+            ),
+            "Did not read the origin block store address {}, got {:?} instead",
+            expected_origin_block_store_address,
+            config.origin_block_store_address(),
+        );
+        assert_eq!(
+            config.auxiliary_block_store_address(),
+            None,
+            "The auxiliary block store address should be none if not set.",
+        );
+
+        let expected_auxiliary_block_store_address = "b234567890123456789012345678901234567890";
+        env::set_var(
+            ENV_AUXILIARY_BLOCK_STORE_ADDRESS,
+            expected_auxiliary_block_store_address,
+        );
+        let config = Config::new();
+        assert_eq!(
+            config.auxiliary_block_store_address(),
+            Some(
+                expected_auxiliary_block_store_address
+                    .parse::<Address>()
+                    .unwrap()
+            ),
+            "Did not read the auxiliary block store address {}, got {:?} instead",
+            expected_auxiliary_block_store_address,
+            config.auxiliary_block_store_address(),
+        );
+        assert_eq!(
+            config.origin_block_store_address(),
+            Some(
+                expected_origin_block_store_address
+                    .parse::<Address>()
+                    .unwrap()
+            ),
+            "Did not read the origin block store address {}, got {:?} instead",
+            expected_origin_block_store_address,
+            config.origin_block_store_address(),
+        );
+
         env::remove_var(ENV_ORIGIN_ENDPOINT);
         env::remove_var(ENV_AUXILIARY_ENDPOINT);
         env::remove_var(ENV_ORIGIN_VALIDATOR_ADDRESS);
         env::remove_var(ENV_AUXILIARY_VALIDATOR_ADDRESS);
+        env::remove_var(ENV_ORIGIN_BLOCK_STORE_ADDRESS);
+        env::remove_var(ENV_AUXILIARY_BLOCK_STORE_ADDRESS);
     }
 }

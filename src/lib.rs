@@ -19,6 +19,7 @@
 
 #[macro_use]
 extern crate log;
+extern crate ethabi;
 extern crate futures;
 extern crate rpassword;
 extern crate tokio_core;
@@ -29,6 +30,7 @@ use ethereum::Ethereum;
 use std::error::Error;
 
 pub mod config;
+mod error;
 mod ethereum;
 mod observer;
 
@@ -54,7 +56,7 @@ pub fn run(config: &Config) -> Result<(), Box<Error>> {
         Box::new(event_loop.handle()),
     );
 
-    observer::run(&origin, &auxiliary, &event_loop.handle());
+    observer::run(&origin, &auxiliary, &event_loop.handle(), config);
 
     loop {
         event_loop.turn(None);
