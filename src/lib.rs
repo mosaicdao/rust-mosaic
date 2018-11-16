@@ -23,6 +23,7 @@ extern crate futures;
 extern crate rpassword;
 extern crate tokio_core;
 extern crate web3;
+extern crate rustc_hex;
 
 use blockchain::{Blockchain, BlockchainKind};
 pub use config::Config;
@@ -31,6 +32,7 @@ use std::error::Error;
 mod blockchain;
 pub mod config;
 mod observer;
+mod auxiliary;
 
 /// Runs a mosaic node with the given configuration.
 /// Prints all accounts of the origin blockchain to std out.
@@ -55,6 +57,13 @@ pub fn run(config: &Config) -> Result<(), Box<Error>> {
     );
 
     observer::run(&origin, &auxiliary, &event_loop.handle());
+
+    auxiliary::run(
+        &origin,
+        &event_loop.handle(),
+        config.origin_block_store_address(),
+        config.auxiliary_validator_address(),
+    );
 
     loop {
         event_loop.turn(None);

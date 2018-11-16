@@ -16,6 +16,8 @@
 
 pub use self::types::*;
 use futures::prelude::*;
+use web3::contract::Contract;
+use web3::transports::Http;
 
 mod ethereum;
 pub mod types;
@@ -56,14 +58,14 @@ impl Blockchain {
     ///
     /// It is the caller's responsibility to poll the stream, e.g. call `for_each` and put the
     /// future into a reactor.
-    pub fn stream_blocks(&self) -> impl Stream<Item = Block, Error = Error> {
+    pub fn stream_blocks(&self) -> impl Stream<Item=Block, Error=Error> {
         match self {
             Blockchain::Eth(ethereum) => ethereum.stream_blocks(),
         }
     }
 
     /// Returns all accounts on this blockchain.
-    pub fn get_accounts(&self) -> impl Future<Item = Vec<Address>, Error = Error> {
+    pub fn get_accounts(&self) -> impl Future<Item=Vec<Address>, Error=Error> {
         match self {
             Blockchain::Eth(ethereum) => ethereum.get_accounts(),
         }
@@ -78,9 +80,25 @@ impl Blockchain {
     /// # Returns
     ///
     /// Returns a `Signature` of the signed data.
-    pub fn sign(&self, data: Bytes) -> impl Future<Item = Signature, Error = Error> {
+    pub fn sign(&self, data: Bytes) -> impl Future<Item=Signature, Error=Error> {
         match self {
             Blockchain::Eth(ethereum) => ethereum.sign(data),
+        }
+    }
+
+    /// Create contract instance
+    ///
+    /// # Arguments
+    ///
+    /// * `contract_address` -  The address of contract.
+    /// * `abi` - ABI of contract.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `contract` instance.
+    pub fn contract_instance(&self, contract_address: Address, abi: &[u8]) -> Contract<Http> {
+        match self {
+            Blockchain::Eth(ethereum) => ethereum.contract_instance(contract_address, abi),
         }
     }
 }

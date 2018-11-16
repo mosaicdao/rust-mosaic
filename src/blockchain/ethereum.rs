@@ -23,6 +23,7 @@ use web3::types::H256 as Web3H256;
 use web3::types::U128 as Web3U128;
 use web3::types::U256 as Web3U256;
 use web3::types::{BlockId, H160, H520};
+use web3::contract::Contract;
 use web3::Web3;
 
 /// This struct stores a connection to an Ethereum node.
@@ -173,6 +174,24 @@ impl Ethereum {
             let signature: Signature = web3_signature.into();
             signature
         })
+    }
+
+    /// Create contract instance
+    ///
+    /// # Arguments
+    ///
+    /// * `contract_address` -  The address of contract.
+    /// * `abi` - ABI of contract.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `contract` instance.
+    pub fn contract_instance(&self, contract_address: Address, abi: &[u8]) -> Contract<Http> {
+        Contract::from_json(
+            self.web3.eth(),
+            H160::from(contract_address),
+            abi,
+        ).unwrap()
     }
 
     /// Unlocks the validator account of this ethereum instance using the stored password.

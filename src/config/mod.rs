@@ -25,6 +25,7 @@ const DEFAULT_AUXILIARY_ENDPOINT: &str = "http://127.0.0.1:8546";
 const ENV_ORIGIN_CORE_ADDRESS: &str = "MOSAIC_ORIGIN_CORE_ADDRESS";
 const ENV_ORIGIN_VALIDATOR_ADDRESS: &str = "MOSAIC_ORIGIN_VALIDATOR_ADDRESS";
 const ENV_AUXILIARY_VALIDATOR_ADDRESS: &str = "MOSAIC_AUXILIARY_VALIDATOR_ADDRESS";
+const ENV_ORIGIN_BLOCK_STORE_ADDRESS: &str = "MOSAIC_ORIGIN_BLOCK_STORE_ADDRESS";
 
 /// Global config for running a mosaic node.
 #[derive(Default)]
@@ -40,6 +41,8 @@ pub struct Config {
     origin_validator_address: Address,
     /// The address that is used to send messages as a validator on auxiliary.
     auxiliary_validator_address: Address,
+    /// The address of origin block store contract.
+    origin_block_store_address: Address,
 }
 
 impl Config {
@@ -96,12 +99,21 @@ impl Config {
                 None => panic!("An auxiliary validator address must be set"),
             };
 
+        let origin_block_store_address =
+            match Self::read_environment_variable(ENV_ORIGIN_BLOCK_STORE_ADDRESS, None) {
+                Some(auxiliary_validator_address) => auxiliary_validator_address
+                    .parse::<Address>()
+                    .expect("The origin block store address cannot be parsed"),
+                None => panic!("An origin block store address must be set"),
+            };
+
         Config {
             origin_endpoint,
             auxiliary_endpoint,
             _origin_core_address: origin_core_address,
             origin_validator_address,
             auxiliary_validator_address,
+            origin_block_store_address
         }
     }
 
@@ -158,6 +170,11 @@ impl Config {
     /// Returns the auxiliary validator address set on this config.
     pub fn auxiliary_validator_address(&self) -> Address {
         self.auxiliary_validator_address
+    }
+
+    /// Returns the address of origin block store.
+    pub fn origin_block_store_address(&self) -> Address {
+        self.origin_block_store_address
     }
 }
 
