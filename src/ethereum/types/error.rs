@@ -33,23 +33,15 @@ impl Error {
 /// The kinds of errors that can appear.
 #[derive(Debug)]
 pub enum ErrorKind {
-    InvalidAddress,
     InvalidBlock,
-    InvalidBytes,
-    InvalidSignature,
     NodeError,
-    Overflow,
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.kind {
-            ErrorKind::InvalidAddress => write!(f, "Not a valid address!").unwrap(),
             ErrorKind::InvalidBlock => write!(f, "Not a valid block!").unwrap(),
-            ErrorKind::InvalidBytes => write!(f, "Not valid bytes!").unwrap(),
-            ErrorKind::InvalidSignature => write!(f, "Not a valid signature!").unwrap(),
             ErrorKind::NodeError => write!(f, "Error on blockchain node!").unwrap(),
-            ErrorKind::Overflow => write!(f, "Overflow!").unwrap(),
         };
 
         write!(f, " Explanation: {}", self.explanation).unwrap();

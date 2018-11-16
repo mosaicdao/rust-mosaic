@@ -14,8 +14,8 @@
 
 //! This module covers blocks.
 
-use blockchain::types::{Address, Bytes, H256, U128, U256};
 use std::fmt::{self, Display, Formatter};
+use web3::types::{Address, Bytes, H256, U128, U256};
 
 /// A block represents a block of a blockchain.
 #[derive(Debug)]

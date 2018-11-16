@@ -24,12 +24,12 @@ extern crate rpassword;
 extern crate tokio_core;
 extern crate web3;
 
-use blockchain::{Blockchain, BlockchainKind};
 pub use config::Config;
+use ethereum::Ethereum;
 use std::error::Error;
 
-mod blockchain;
 pub mod config;
+mod ethereum;
 mod observer;
 
 /// Runs a mosaic node with the given configuration.
@@ -41,15 +41,13 @@ mod observer;
 pub fn run(config: &Config) -> Result<(), Box<Error>> {
     let mut event_loop =
         tokio_core::reactor::Core::new().expect("Could not initialize tokio event loop");
-    let origin = Blockchain::new(
-        &BlockchainKind::Eth,
+    let origin = Ethereum::new(
         config.origin_endpoint(),
         config.origin_validator_address(),
         config.origin_polling_interval(),
         Box::new(event_loop.handle()),
     );
-    let auxiliary = Blockchain::new(
-        &BlockchainKind::Eth,
+    let auxiliary = Ethereum::new(
         config.auxiliary_endpoint(),
         config.auxiliary_validator_address(),
         config.auxiliary_polling_interval(),
