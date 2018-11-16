@@ -13,7 +13,6 @@
 // limitations under the License.
 
 use futures::Future;
-use futures::prelude::*;
 use web3::contract::{Contract, Options};
 use web3::transports::Http;
 use web3::types::H160;

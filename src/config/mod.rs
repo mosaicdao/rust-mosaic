@@ -192,6 +192,10 @@ mod test {
             ENV_AUXILIARY_VALIDATOR_ADDRESS,
             "1234567890123456789012345678901234567890",
         );
+        env::set_var(
+            ENV_ORIGIN_BLOCK_STORE_ADDRESS,
+            "5678901234123456789012345678901234567890",
+        );
         let expected_origin_endpoint = "10.0.0.1";
         env::set_var(ENV_ORIGIN_ENDPOINT, expected_origin_endpoint);
 
@@ -213,7 +217,12 @@ mod test {
                 .parse::<Address>()
                 .unwrap()
         );
-
+        assert_eq!(
+            config.origin_block_store_address(),
+            "5678901234123456789012345678901234567890"
+                .parse::<Address>()
+                .unwrap()
+        );
         env::set_var(ENV_ORIGIN_ENDPOINT, "10.0.0.1");
         let config = Config::new();
         assert_eq!(config.origin_endpoint, "10.0.0.1");
@@ -241,6 +250,7 @@ mod test {
         env::remove_var(ENV_AUXILIARY_ENDPOINT);
         env::remove_var(ENV_ORIGIN_VALIDATOR_ADDRESS);
         env::remove_var(ENV_AUXILIARY_VALIDATOR_ADDRESS);
+        env::remove_var(ENV_ORIGIN_BLOCK_STORE_ADDRESS);
     }
 
     #[test]
@@ -253,6 +263,10 @@ mod test {
         env::set_var(
             ENV_AUXILIARY_VALIDATOR_ADDRESS,
             "1234567890123456789012345678901234567890",
+        );
+        env::set_var(
+            ENV_ORIGIN_BLOCK_STORE_ADDRESS,
+            "5678901234123456789012345678901234567890",
         );
 
         let config = Config::new();
