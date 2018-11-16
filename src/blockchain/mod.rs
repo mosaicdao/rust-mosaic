@@ -18,6 +18,7 @@ pub use self::types::*;
 use futures::prelude::*;
 use web3::contract::Contract;
 use web3::transports::Http;
+use std::time::Duration;
 
 mod ethereum;
 pub mod types;
@@ -40,17 +41,22 @@ impl Blockchain {
     /// * `kind` - The kind that the blockchain shall be.
     /// * `endpoint` - The endpoint of a node of the blockchain.
     /// * `validator` - The address of the validator to sign messages.
+    /// * `polling_interval` - The duration in between two calls to the node to poll for new blocks.
     /// * `event_loop` - The event loop handle.
     pub fn new(
         kind: &BlockchainKind,
         endpoint: &str,
         validator: Address,
+        polling_interval: Duration,
         event_loop: Box<tokio_core::reactor::Handle>,
     ) -> Self {
         match kind {
-            BlockchainKind::Eth => {
-                Blockchain::Eth(ethereum::Ethereum::new(endpoint, validator, event_loop))
-            }
+            BlockchainKind::Eth => Blockchain::Eth(ethereum::Ethereum::new(
+                endpoint,
+                validator,
+                polling_interval,
+                event_loop,
+            )),
         }
     }
 

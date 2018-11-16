@@ -31,7 +31,12 @@ use web3::Web3;
 pub struct Ethereum {
     web3: Web3<Http>,
     validator: Address,
+    /// The password to unlock the validator account on the node.
     password: String,
+    /// The polling interval defines the duration in between two calls to the node to poll for new
+    /// blocks.
+    polling_interval: Duration,
+    /// A handle to the event loop that runs mosaic.
     event_loop: Box<tokio_core::reactor::Handle>,
 }
 
@@ -45,14 +50,17 @@ impl Ethereum {
     ///
     /// # Arguments
     ///
-    /// * `address` - The address of an ethereum node.
+    /// * `endpoint` - The address of an ethereum node.
     /// * `validator` - The address of the validator to sign and send messages from.
+    /// * `polling_interval` - The duration in between two calls to the node to poll for new blocks.
+    /// * `event_loop` - A handle to the event loop that runs mosaic.
     pub fn new(
-        address: &str,
+        endpoint: &str,
         validator: Address,
+        polling_interval: Duration,
         event_loop: Box<tokio_core::reactor::Handle>,
     ) -> Self {
-        let http = Http::with_event_loop(address, &event_loop, 5)
+        let http = Http::with_event_loop(endpoint, &event_loop, 5)
             .expect("Could not initialize ethereum HTTP connection");
         let web3 = Web3::new(http);
 
@@ -65,6 +73,7 @@ impl Ethereum {
             web3,
             validator,
             password,
+            polling_interval,
             event_loop,
         }
     }
@@ -80,8 +89,9 @@ impl Ethereum {
         let blocks_filter = self.web3.eth_filter().create_blocks_filter();
 
         // Block hashes is a stream of block hashes.
+        let polling_interval = self.polling_interval;
         let block_hashes = blocks_filter
-            .map(|filter| filter.stream(Duration::from_secs(1)))
+            .map(move |filter| filter.stream(polling_interval))
             .flatten_stream();
 
         // Web3 blocks is a stream of block futures, mapped from a stream of block hashes.
@@ -134,13 +144,13 @@ impl Ethereum {
                     ErrorKind::NodeError,
                     format!("Was not able to retrieve accounts: {}", error),
                 )
-            }).and_then(|addresses| {
+            }).map(|addresses| {
                 let mut v = Vec::new();
                 for h160 in addresses {
                     v.push(h160.into())
                 }
 
-                Ok(v)
+                v
             })
     }
 

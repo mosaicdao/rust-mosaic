@@ -22,6 +22,8 @@ use mosaic::Config;
 use std::env;
 use std::process;
 
+const ERROR_MOSAIC: i32 = 1;
+
 const ENV_LOG_LEVEL: &str = "MOSAIC_LOG_LEVEL";
 const DEFAULT_LOG_LEVEL: Level = Level::Info;
 
@@ -33,8 +35,8 @@ fn main() {
     let config = Config::new();
 
     if let Err(e) = mosaic::run(&config) {
-        error!("Application error: {}", e);
-        process::exit(1);
+        error!("Mosaic error: {}", e);
+        process::exit(ERROR_MOSAIC);
     }
 }
 

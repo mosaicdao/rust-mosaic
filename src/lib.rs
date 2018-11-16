@@ -47,12 +47,14 @@ pub fn run(config: &Config) -> Result<(), Box<Error>> {
         &BlockchainKind::Eth,
         config.origin_endpoint(),
         config.origin_validator_address(),
+        config.origin_polling_interval(),
         Box::new(event_loop.handle()),
     );
     let auxiliary = Blockchain::new(
         &BlockchainKind::Eth,
         config.auxiliary_endpoint(),
         config.auxiliary_validator_address(),
+        config.auxiliary_polling_interval(),
         Box::new(event_loop.handle()),
     );
 
