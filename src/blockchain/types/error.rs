@@ -38,6 +38,7 @@ pub enum ErrorKind {
     InvalidBytes,
     InvalidSignature,
     NodeError,
+    Overflow,
 }
 
 impl fmt::Display for Error {
@@ -48,6 +49,7 @@ impl fmt::Display for Error {
             ErrorKind::InvalidBytes => write!(f, "Not valid bytes!").unwrap(),
             ErrorKind::InvalidSignature => write!(f, "Not a valid signature!").unwrap(),
             ErrorKind::NodeError => write!(f, "Error on blockchain node!").unwrap(),
+            ErrorKind::Overflow => write!(f, "Overflow!").unwrap(),
         };
 
         write!(f, " Explanation: {}", self.explanation).unwrap();

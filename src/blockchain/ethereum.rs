@@ -19,10 +19,11 @@ use rpassword;
 use std::time::Duration;
 use web3::transports::Http;
 use web3::types::Block as Web3Block;
+use web3::types::Bytes as Web3Bytes;
 use web3::types::H256 as Web3H256;
 use web3::types::U128 as Web3U128;
 use web3::types::U256 as Web3U256;
-use web3::types::{BlockId, H160, H520};
+use web3::types::{BlockId, BlockNumber, FilterBuilder, Log, H160, H520};
 use web3::Web3;
 
 /// This struct stores a connection to an Ethereum node.
@@ -114,7 +115,7 @@ impl Ethereum {
             });
 
         // Returns a stream of blocks, mapped from a stream of web3 block futures.
-        web3_blocks.and_then(|web3_block| match web3_block {
+        let blocks = web3_blocks.and_then(|web3_block| match web3_block {
             // Mapping web3 block Option to a Block.
             // Wrapping in Ok() as it has to return an IntoFuture.
             Some(web3_block) => match web3_block.into_block() {
@@ -128,6 +129,36 @@ impl Ethereum {
                 ErrorKind::NodeError,
                 "No block found".to_string(),
             )),
+        });
+
+        // Get all events for that block from the node and add them to the block struct.
+        let web3_clone = self.web3.clone();
+        blocks.and_then(move |mut block| {
+            let block_number: u64 = block.number.into();
+            let block_number = BlockNumber::from(block_number);
+
+            // Filter for all logs of the current block.
+            let filter_builder = FilterBuilder::default();
+            let log_filter = filter_builder
+                .from_block(block_number)
+                .to_block(block_number)
+                .build();
+
+            web3_clone
+                .eth()
+                .logs(log_filter)
+                .map_err(|error| {
+                    Error::new(
+                        ErrorKind::NodeError,
+                        format!("Error while retrieving logs from node: {}", error),
+                    )
+                }).map(|logs| {
+                    for log in logs {
+                        block.events.push(log.into());
+                    }
+
+                    block
+                })
         })
     }
 
@@ -225,6 +256,12 @@ impl From<H160> for Address {
     }
 }
 
+impl From<Web3Bytes> for Bytes {
+    fn from(bytes: Web3Bytes) -> Bytes {
+        bytes.0.into()
+    }
+}
+
 impl From<Web3H256> for H256 {
     /// Converts a web3 H256 into an `H256`.
     fn from(h256: Web3H256) -> H256 {
@@ -250,6 +287,57 @@ impl From<H520> for Signature {
     /// Converts a web3 H520 into a `Signature`.
     fn from(h520: H520) -> Signature {
         Signature { 0: h520.0 }
+    }
+}
+
+impl From<U128> for BlockNumber {
+    /// Tries to convert a U128 into a block number. Panics if there is a u64 overflow during
+    /// conversion.
+    fn from(u128: U128) -> BlockNumber {
+        let block_number: u64 = u128.into();
+
+        BlockNumber::from(block_number)
+    }
+}
+
+impl From<Log> for Event {
+    fn from(log: Log) -> Event {
+        let mut topics: Vec<H256> = vec![];
+        for topic in log.topics {
+            topics.push(topic.into());
+        }
+
+        Event {
+            address: log.address.into(),
+            topics,
+            data: log.data.into(),
+            block_hash: match log.block_hash {
+                Some(block_hash) => Some(block_hash.into()),
+                None => None,
+            },
+            block_number: match log.block_number {
+                Some(block_number) => Some(block_number.into()),
+                None => None,
+            },
+            transaction_hash: match log.transaction_hash {
+                Some(transaction_hash) => Some(transaction_hash.into()),
+                None => None,
+            },
+            transaction_index: match log.transaction_index {
+                Some(transaction_index) => Some(transaction_index.into()),
+                None => None,
+            },
+            log_index: match log.log_index {
+                Some(log_index) => Some(log_index.into()),
+                None => None,
+            },
+            transaction_log_index: match log.transaction_log_index {
+                Some(transaction_log_index) => Some(transaction_log_index.into()),
+                None => None,
+            },
+            log_type: log.log_type,
+            removed: log.removed,
+        }
     }
 }
 
@@ -283,6 +371,7 @@ impl<TX> IntoBlock for Web3Block<TX> {
             gas_used: self.gas_used.into(),
             gas_limit: self.gas_limit.into(),
             timestamp: self.timestamp.into(),
+            events: vec![],
         })
     }
 }
