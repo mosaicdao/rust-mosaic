@@ -14,13 +14,13 @@
 
 //! This module covers blocks.
 
-use blockchain::types::basic_types::{H256, U128, U256};
 use std::fmt::{self, Display, Formatter};
+use web3::types::{Address, Bytes, H256, U128, U256};
 
 /// A block represents a block of a blockchain.
 #[derive(Debug)]
 pub struct Block {
-    /// The block hash of this block. TODO: more?
+    /// The block hash of this block.
     pub hash: H256,
     pub parent_hash: H256,
     pub state_root: H256,
@@ -29,6 +29,7 @@ pub struct Block {
     pub gas_used: U256,
     pub gas_limit: U256,
     pub timestamp: U256,
+    pub events: Vec<Event>,
 }
 
 impl Display for Block {
@@ -37,4 +38,18 @@ impl Display for Block {
 
         Ok(())
     }
+}
+#[derive(Debug, Clone, PartialEq)]
+pub struct Event {
+    pub address: Address,
+    pub topics: Vec<H256>,
+    pub data: Bytes,
+    pub block_hash: Option<H256>,
+    pub block_number: Option<U256>,
+    pub transaction_hash: Option<H256>,
+    pub transaction_index: Option<U256>,
+    pub log_index: Option<U256>,
+    pub transaction_log_index: Option<U256>,
+    pub log_type: Option<String>,
+    pub removed: Option<bool>,
 }

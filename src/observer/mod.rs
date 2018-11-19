@@ -14,7 +14,7 @@
 
 //! This module is about observing blockchains.
 
-use super::blockchain::Blockchain;
+use super::ethereum::Ethereum;
 use futures::prelude::*;
 
 /// Runs a mosaic observer. The observer observes blocks from origin and auxiliary. When a new block
@@ -28,20 +28,53 @@ use futures::prelude::*;
 /// * `origin` - A blockchain object that points to origin.
 /// * `auxiliary` - A blockchain object that points to auxiliary.
 /// * `event_loop` - The reactor's event loop to handle the tasks spawned by this observer.
-pub fn run(origin: &Blockchain, auxiliary: &Blockchain, event_loop: &tokio_core::reactor::Handle) {
+pub fn run(origin: &Ethereum, auxiliary: &Ethereum, event_loop: &tokio_core::reactor::Handle) {
     let origin_stream = origin.stream_blocks();
     let auxiliary_stream = auxiliary.stream_blocks();
 
-    // `info!`s are just used as an example. The actual logic of how to handle each block will be
-    // done here. Should spawn new futures to not block if longer computation.
-    let origin_worker = origin_stream.map_err(|_| ()).for_each(|block| {
-        info!("Origin Block:    {}", block);
-        Ok(())
-    });
-    let auxiliary_worker = auxiliary_stream.map_err(|_| ()).for_each(|block| {
-        info!("Auxiliary Block: {}", block);
-        Ok(())
-    });
+    // Using `then` to catch errors. If the errors weren't caught, the stream would terminate after
+    // an error. However, we want to continue polling the node for new blocks, even if there was an
+    // error with a particular block. In the `for_each` block we need to then check for an existing
+    // block as we caught all blocks and errors and mapped both to `Option`al blocks (`None` in the
+    // error case).
+    let origin_worker = origin_stream
+        .then(|item| match item {
+            Ok(block) => Ok(Some(block)),
+            Err(error) => {
+                error!("Error when streaming from origin chain: {}", error);
+                Ok(None)
+            }
+        }).for_each(|block| {
+            let block = match block {
+                Some(block) => block,
+                None => return Ok(()),
+            };
+
+            // `info!`s are just used as an example. The actual logic of how to handle each block will be
+            // done here. Should spawn new futures to not block if longer computation.
+            info!("Origin Block:     {}", block);
+            info!("Origin Events:    {:?}", block.events);
+
+            Ok(())
+        });
+
+    let auxiliary_worker = auxiliary_stream
+        .then(|item| match item {
+            Ok(block) => Ok(Some(block)),
+            Err(error) => {
+                error!("Error when streaming from auxiliary chain: {}", error);
+                Ok(None)
+            }
+        }).for_each(|block| {
+            let block = match block {
+                Some(block) => block,
+                None => return Ok(()),
+            };
+
+            info!("Auxiliary Block:  {}", block);
+            info!("Auxiliary Events: {:?}", block.events);
+            Ok(())
+        });
 
     event_loop.spawn(origin_worker);
     event_loop.spawn(auxiliary_worker);

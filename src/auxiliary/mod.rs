@@ -15,10 +15,10 @@
 use futures::Future;
 use web3::contract::{Contract, Options};
 use web3::transports::Http;
-use web3::types::H160;
+use web3::types::{H160, Address};
 use rustc_hex::FromHex;
 
-use blockchain::*;
+use super::ethereum::Ethereum;
 
 ///This module is about report blocks to block store.
 ///
@@ -29,7 +29,7 @@ use blockchain::*;
 /// * `block_store_address` - The address of origin block store.
 /// * `validator_address` - The address of origin validator address.
 pub fn run(
-    block_chain: &Blockchain,
+    block_chain: &Ethereum,
     event_loop: &tokio_core::reactor::Handle,
     block_store_address: Address,
     validator_address: Address,
