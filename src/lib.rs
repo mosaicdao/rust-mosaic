@@ -26,7 +26,7 @@ extern crate web3;
 extern crate rustc_hex;
 
 pub use config::Config;
-use ethereum::Ethereum;
+use ethereum::{Ethereum, Reactor};
 use std::error::Error;
 
 pub mod config;
@@ -43,7 +43,7 @@ mod auxiliary;
 pub fn run(config: &Config) -> Result<(), Box<Error>> {
     let mut event_loop =
         tokio_core::reactor::Core::new().expect("Could not initialize tokio event loop");
-    let origin = Ethereum::new(
+    let mut origin = Ethereum::new(
         config.origin_endpoint(),
         config.origin_validator_address(),
         config.origin_polling_interval(),
@@ -56,14 +56,14 @@ pub fn run(config: &Config) -> Result<(), Box<Error>> {
         Box::new(event_loop.handle()),
     );
 
-    observer::run(&origin, &auxiliary, &event_loop.handle());
+    let block_reporter = Reactor::BlockReporter {
+        block_store_address: config.origin_block_store_address(),
+        validator_address: config.auxiliary_validator_address(),
+    };
 
-    auxiliary::run(
-        &origin,
-        &event_loop.handle(),
-        config.origin_block_store_address(),
-        config.auxiliary_validator_address(),
-    );
+    origin.register_observer(block_reporter);
+
+    observer::run(&origin, &auxiliary, &event_loop.handle());
 
     loop {
         event_loop.turn(None);

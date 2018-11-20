@@ -32,6 +32,7 @@ pub fn run(origin: &Ethereum, auxiliary: &Ethereum, event_loop: &tokio_core::rea
     let origin_stream = origin.stream_blocks();
     let auxiliary_stream = auxiliary.stream_blocks();
 
+    let mut cloned_origin = origin.clone();
     // Using `then` to catch errors. If the errors weren't caught, the stream would terminate after
     // an error. However, we want to continue polling the node for new blocks, even if there was an
     // error with a particular block. In the `for_each` block we need to then check for an existing
@@ -44,17 +45,12 @@ pub fn run(origin: &Ethereum, auxiliary: &Ethereum, event_loop: &tokio_core::rea
                 error!("Error when streaming from origin chain: {}", error);
                 Ok(None)
             }
-        }).for_each(|block| {
+        }).for_each(move |block| {
             let block = match block {
                 Some(block) => block,
                 None => return Ok(()),
             };
-
-            // `info!`s are just used as an example. The actual logic of how to handle each block will be
-            // done here. Should spawn new futures to not block if longer computation.
-            info!("Origin Block:     {}", block);
-            info!("Origin Events:    {:?}", block.events);
-
+            cloned_origin.notify_all_observers(&block);
             Ok(())
         });
 

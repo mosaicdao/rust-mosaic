@@ -41,10 +41,33 @@ pub struct Ethereum {
     polling_interval: Duration,
     /// A handle to the event loop that runs mosaic.
     event_loop: Box<tokio_core::reactor::Handle>,
+    /// List of block observers. These are notified when any new block is generated.
+    observers: Vec<Reactor>,
+}
+
+/// This enum represents all reactors which will react to block generation.
+#[derive(Debug, Clone)]
+pub enum Reactor {
+    BlockReporter {block_store_address: Address, validator_address:Address },
 }
 
 trait IntoBlock {
     fn into_block(&self) -> Result<Block, Error>;
+}
+
+/// Anything that wants to react on block generation should implement this.
+trait Observe {
+    fn observe(&self, value: &Block, block_chain: &Ethereum);
+}
+
+impl Observe for Reactor {
+    fn observe(&self, value: &Block, block_chain: &Ethereum) {
+        match &self {
+            Reactor::BlockReporter{block_store_address, validator_address } => {
+                println!("block reporter block reporter");
+            }
+        }
+    }
 }
 
 impl Ethereum {
@@ -78,6 +101,7 @@ impl Ethereum {
             password,
             polling_interval,
             event_loop,
+            observers: Vec::new(),
         }
     }
 
@@ -240,6 +264,30 @@ impl Ethereum {
                 )
             })
     }
+
+    /// Register a block observer.
+    ///
+    /// # Arguments
+    ///
+    /// * `observer` - Any object which implements observer traits
+    ///
+    pub fn register_observer(&mut self, observer: Reactor) {
+        self.observers.push(observer);
+    }
+
+    /// Notify all the block observers
+    ///
+    /// # Arguments
+    ///
+    /// * `block` - block to notify
+    ///
+    pub fn notify_all_observers(&mut self, block: &Block) {
+
+        for observer in &self.observers {
+            observer.observe(block, &self);
+        }
+    }
+
 }
 
 impl From<Log> for Event {
