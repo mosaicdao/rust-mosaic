@@ -33,6 +33,7 @@ pub fn run(origin: &Ethereum, auxiliary: &Ethereum, event_loop: &tokio_core::rea
     let auxiliary_stream = auxiliary.stream_blocks();
 
     let mut cloned_origin = origin.clone();
+    let mut cloned_auxiliary = auxiliary.clone();
     // Using `then` to catch errors. If the errors weren't caught, the stream would terminate after
     // an error. However, we want to continue polling the node for new blocks, even if there was an
     // error with a particular block. In the `for_each` block we need to then check for an existing
@@ -50,6 +51,7 @@ pub fn run(origin: &Ethereum, auxiliary: &Ethereum, event_loop: &tokio_core::rea
                 Some(block) => block,
                 None => return Ok(()),
             };
+
             cloned_origin.notify_all_observers(&block);
             Ok(())
         });
@@ -61,14 +63,13 @@ pub fn run(origin: &Ethereum, auxiliary: &Ethereum, event_loop: &tokio_core::rea
                 error!("Error when streaming from auxiliary chain: {}", error);
                 Ok(None)
             }
-        }).for_each(|block| {
+        }).for_each(move |block| {
             let block = match block {
                 Some(block) => block,
                 None => return Ok(()),
             };
 
-            info!("Auxiliary Block:  {}", block);
-            info!("Auxiliary Events: {:?}", block.events);
+            cloned_auxiliary.notify_all_observers(&block);
             Ok(())
         });
 

@@ -28,6 +28,7 @@ const ENV_ORIGIN_CORE_ADDRESS: &str = "MOSAIC_ORIGIN_CORE_ADDRESS";
 const ENV_ORIGIN_VALIDATOR_ADDRESS: &str = "MOSAIC_ORIGIN_VALIDATOR_ADDRESS";
 const ENV_AUXILIARY_VALIDATOR_ADDRESS: &str = "MOSAIC_AUXILIARY_VALIDATOR_ADDRESS";
 const ENV_ORIGIN_BLOCK_STORE_ADDRESS: &str = "MOSAIC_ORIGIN_BLOCK_STORE_ADDRESS";
+const ENV_AUXILIARY_BLOCK_STORE_ADDRESS: &str = "MOSAIC_AUXILIARY_BLOCK_STORE_ADDRESS";
 const ENV_ORIGIN_POLLING_INTERVAL: &str = "MOSAIC_ORIGIN_POLLING_INTERVAL";
 const DEFAULT_ORIGIN_POLLING_INTERVAL: &str = "1";
 const ENV_AUXILIARY_POLLING_INTERVAL: &str = "MOSAIC_AUXILIARY_POLLING_INTERVAL";
@@ -49,6 +50,8 @@ pub struct Config {
     auxiliary_validator_address: Address,
     /// The address of origin block store contract.
     origin_block_store_address: Address,
+    /// The address of auxiliary block store contract.
+    auxiliary_block_store_address: Address,
     origin_polling_interval: Duration,
     auxiliary_polling_interval: Duration,
 }
@@ -116,6 +119,14 @@ impl Config {
                 None => panic!("An origin block store address must be set"),
             };
 
+        let auxiliary_block_store_address =
+            match Self::read_environment_variable(ENV_AUXILIARY_BLOCK_STORE_ADDRESS, None) {
+                Some(auxiliary_validator_address) => auxiliary_validator_address
+                    .parse::<Address>()
+                    .expect("The auxiliary block store address cannot be parsed"),
+                None => panic!("An auxiliary block store address must be set"),
+            };
+
         let origin_polling_interval = match Self::read_environment_variable(
             ENV_ORIGIN_POLLING_INTERVAL,
             Some(DEFAULT_ORIGIN_POLLING_INTERVAL),
@@ -153,6 +164,7 @@ impl Config {
             origin_validator_address,
             auxiliary_validator_address,
             origin_block_store_address,
+            auxiliary_block_store_address,
             origin_polling_interval,
             auxiliary_polling_interval,
         }
@@ -218,6 +230,11 @@ impl Config {
         self.origin_block_store_address
     }
 
+    /// Returns the address of auxiliary block store.
+    pub fn auxiliary_block_store_address(&self) -> Address {
+        self.auxiliary_block_store_address
+    }
+
     pub fn origin_polling_interval(&self) -> Duration {
         self.origin_polling_interval
     }
@@ -259,6 +276,10 @@ mod test {
         );
         env::set_var(
             ENV_ORIGIN_BLOCK_STORE_ADDRESS,
+            "5678901234123456789012345678901234567890",
+        );
+        env::set_var(
+            ENV_AUXILIARY_BLOCK_STORE_ADDRESS,
             "5678901234123456789012345678901234567890",
         );
 
@@ -305,6 +326,12 @@ mod test {
                 .parse::<Address>()
                 .unwrap()
         );
+        assert_eq!(
+            config.auxiliary_block_store_address(),
+            "5678901234123456789012345678901234567890"
+                .parse::<Address>()
+                .unwrap()
+        );
 
         env::set_var(ENV_ORIGIN_ENDPOINT, "10.0.0.1");
         let config = Config::new();
@@ -333,5 +360,7 @@ mod test {
         env::remove_var(ENV_AUXILIARY_ENDPOINT);
         env::remove_var(ENV_ORIGIN_VALIDATOR_ADDRESS);
         env::remove_var(ENV_AUXILIARY_VALIDATOR_ADDRESS);
+        env::remove_var(ENV_ORIGIN_BLOCK_STORE_ADDRESS);
+        env::remove_var(ENV_AUXILIARY_BLOCK_STORE_ADDRESS);
     }
 }

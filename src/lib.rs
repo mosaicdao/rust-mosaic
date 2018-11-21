@@ -50,19 +50,25 @@ pub fn run(config: &Config) -> Result<(), Box<Error>> {
         config.origin_polling_interval(),
         Box::new(event_loop.handle()),
     );
-    let auxiliary = Ethereum::new(
+    let mut auxiliary = Ethereum::new(
         config.auxiliary_endpoint(),
         config.auxiliary_validator_address(),
         config.auxiliary_polling_interval(),
         Box::new(event_loop.handle()),
     );
 
-    let block_reporter = Reactor::BlockReporter {
+    let origin_block_reporter = Reactor::BlockReporter {
         block_store_address: config.origin_block_store_address(),
+        validator_address: config.origin_validator_address(),
+    };
+
+    let auxiliary_block_reporter = Reactor::BlockReporter {
+        block_store_address: config.auxiliary_block_store_address(),
         validator_address: config.auxiliary_validator_address(),
     };
 
-    origin.register_observer(block_reporter);
+    origin.register_observer(origin_block_reporter);
+    auxiliary.register_observer(auxiliary_block_reporter);
 
     observer::run(&origin, &auxiliary, &event_loop.handle());
 

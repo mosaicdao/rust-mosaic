@@ -22,7 +22,7 @@ use rlp;
 use sha3::{Digest, Keccak256};
 
 use super::ethereum::Ethereum;
-use super::ethereum::types::Block;
+use ethereum::types::{Block, Error, ErrorKind};
 
 const REPORT_BLOCK_ESTIMATED_GAS: i32 = 3_000_000;
 
@@ -66,9 +66,12 @@ pub fn report_block(
                             });
                         event_loop_clone.spawn(report_future);
                     }
-                    !is_reported
+                    Ok(!is_reported)
                 }
-                Err(_e) => false
+                Err(e) => Err(Error::new(
+                    ErrorKind::NodeError,
+                    format!("Can't check if block is already reported: {}", e),
+                ))
             };
             println!("is reported {:?}", block_reported);
             Ok(())
