@@ -14,10 +14,10 @@
 
 //! This module handles all configuration of this library.
 
-use blockchain::Address;
 use std::env;
 use std::error::Error;
 use std::time::Duration;
+use web3::types::Address;
 
 // Environment variables and their defaults
 const ENV_ORIGIN_ENDPOINT: &str = "MOSAIC_ORIGIN_ENDPOINT";

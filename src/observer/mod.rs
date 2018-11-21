@@ -14,7 +14,7 @@
 
 //! This module is about observing blockchains.
 
-use super::blockchain::Blockchain;
+use super::ethereum::Ethereum;
 use futures::prelude::*;
 
 /// Runs a mosaic observer. The observer observes blocks from origin and auxiliary. When a new block
@@ -28,7 +28,7 @@ use futures::prelude::*;
 /// * `origin` - A blockchain object that points to origin.
 /// * `auxiliary` - A blockchain object that points to auxiliary.
 /// * `event_loop` - The reactor's event loop to handle the tasks spawned by this observer.
-pub fn run(origin: &Blockchain, auxiliary: &Blockchain, event_loop: &tokio_core::reactor::Handle) {
+pub fn run(origin: &Ethereum, auxiliary: &Ethereum, event_loop: &tokio_core::reactor::Handle) {
     let origin_stream = origin.stream_blocks();
     let auxiliary_stream = auxiliary.stream_blocks();
 
