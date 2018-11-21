@@ -17,14 +17,17 @@
 use futures::Future;
 use web3::contract::{Contract, Options};
 use web3::transports::Http;
-use web3::types::{H160, Address};
+use web3::types::{H160, Address, H256};
 use rlp;
+use sha3::{Digest, Keccak256};
 
 use super::ethereum::Ethereum;
 use super::ethereum::types::Block;
 
-const REPORT_BLOCK_ESTIMATED_GAS:i32 = 3_000_000;
+const REPORT_BLOCK_ESTIMATED_GAS: i32 = 3_000_000;
 
+/// Reports block on block store if not already reported.
+///
 /// # Arguments
 ///
 /// * `blockchain` - A blockchain object.
@@ -36,21 +39,38 @@ pub fn report_block(
     event_loop: &tokio_core::reactor::Handle,
     block_store_address: Address,
     validator_address: Address,
-    block: &Block
+    block: &Block,
 ) {
     let encoded_block = rlp::encode(block);
+
+    let block_hash = H256::from(Keccak256::digest(encoded_block.as_slice()).as_slice());
 
     let contract: Contract<Http> = block_chain.contract_instance(
         block_store_address,
         include_bytes!( "../contract/abi/BlockStore.json"),
     );
+    let event_loop_clone = event_loop.clone();
 
-    let call_future = contract
-        .call("reportBlock", encoded_block, H160::from(validator_address), Options::with(|opt| {
-            opt.gas = Some(REPORT_BLOCK_ESTIMATED_GAS.into())
-        }))
-        .then( |tx| {
-            println!("Block reported got tx: {:?}", tx);
+    let call_future = contract.query("isBlockReported", block_hash, H160::from(validator_address), Options::default(), None)
+        .then(move |result: Result<bool, web3::contract::Error>| {
+            let block_reported = match result {
+                Ok(is_reported) => {
+                    if !is_reported {
+                        let report_future = contract
+                            .call("reportBlock", encoded_block, H160::from(validator_address), Options::with(|opt| {
+                                opt.gas = Some(REPORT_BLOCK_ESTIMATED_GAS.into())
+                            }))
+                            .then(move |tx| {
+                                println!("Block reported got tx: {:?}", tx);
+                                Ok(())
+                            });
+                        event_loop_clone.spawn(report_future);
+                    }
+                    !is_reported
+                }
+                Err(_e) => false
+            };
+            println!("is reported {:?}", block_reported);
             Ok(())
         });
 

@@ -24,6 +24,7 @@ extern crate rpassword;
 extern crate tokio_core;
 extern crate web3;
 extern crate rlp;
+extern crate sha3;
 
 pub use config::Config;
 use ethereum::{Ethereum, Reactor};
