@@ -23,7 +23,7 @@ extern crate futures;
 extern crate rpassword;
 extern crate tokio_core;
 extern crate web3;
-extern crate rustc_hex;
+extern crate rlp;
 
 pub use config::Config;
 use ethereum::{Ethereum, Reactor};

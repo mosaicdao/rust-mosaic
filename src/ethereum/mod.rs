@@ -27,7 +27,9 @@ use web3::contract::Contract;
 use web3::types::{Address, BlockId, BlockNumber, Bytes, FilterBuilder, Log, H160};
 use web3::Web3;
 
-mod types;
+use super::auxiliary;
+
+pub mod types;
 
 /// This struct stores a connection to an Ethereum node.
 #[derive(Clone)]
@@ -48,7 +50,7 @@ pub struct Ethereum {
 /// This enum represents all reactors which will react to block generation.
 #[derive(Debug, Clone)]
 pub enum Reactor {
-    BlockReporter {block_store_address: Address, validator_address:Address },
+    BlockReporter { block_store_address: Address, validator_address: Address },
 }
 
 trait IntoBlock {
@@ -61,10 +63,16 @@ trait Observe {
 }
 
 impl Observe for Reactor {
-    fn observe(&self, value: &Block, block_chain: &Ethereum) {
+    fn observe(&self, block: &Block, block_chain: &Ethereum) {
         match &self {
-            Reactor::BlockReporter{block_store_address, validator_address } => {
-                println!("block reporter block reporter");
+            Reactor::BlockReporter { block_store_address, validator_address } => {
+                auxiliary::report_block(
+                    &block_chain,
+                    &block_chain.event_loop,
+                    block_store_address.clone(),
+                    validator_address.clone(),
+                    block,
+                );
             }
         }
     }
@@ -324,20 +332,28 @@ impl<TX> IntoBlock for Web3Block<TX> {
                 }
             },
             parent_hash: self.parent_hash,
+            uncles_hash: self.parent_hash,
+            author: self.author,
             state_root: self.state_root,
             transactions_root: self.transactions_root,
+            receipts_root: self.transactions_root,
+            logs_bloom: self.logs_bloom,
+            total_difficulty: self.total_difficulty,
             number: match self.number {
                 Some(number) => number,
                 None => {
                     return Err(Error::new(
                         ErrorKind::InvalidBlock,
                         "Block has no number".to_string(),
-                    ))
+                    ));
                 }
             },
-            gas_used: self.gas_used,
             gas_limit: self.gas_limit,
+            gas_used: self.gas_used,
             timestamp: self.timestamp,
+            extra_data: self.extra_data.clone(),
+            mix_data: self.transactions_root,
+            nonce: self.difficulty,
             events: vec![],
         })
     }
