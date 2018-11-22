@@ -14,9 +14,9 @@
 
 //! This module covers blocks.
 
-use std::fmt::{self, Display, Formatter};
-use web3::types::{Address, Bytes, H256, U128, U256, H160, H2048};
 use rlp::{Encodable, RlpStream};
+use std::fmt::{self, Display, Formatter};
+use web3::types::{Address, Bytes, H160, H2048, H256, U128, U256};
 
 /// A block represents a block of a blockchain.
 #[derive(Debug)]
@@ -37,7 +37,7 @@ pub struct Block {
     pub timestamp: U256,
     pub extra_data: Bytes,
     pub mix_data: H256,
-    pub nonce : U256,
+    pub nonce: U256,
     pub events: Vec<Event>,
 }
 
@@ -64,26 +64,28 @@ pub struct Event {
 }
 
 impl Encodable for Block {
+    /// RLP encode block
+    ///
+    /// # Arguments
+    ///
+    /// * `rlp_stream` - Appendable rlp encoder.
+    fn rlp_append(&self, rlp_stream: &mut RlpStream) {
+        rlp_stream.begin_list(15);
 
-    fn rlp_append(&self, s: &mut RlpStream) {
-
-        s.begin_list(15);
-
-        s.append(&self.parent_hash);
-        s.append(&self.uncles_hash);
-        s.append(&self.author);
-        s.append(&self.state_root);
-        s.append(&self.transactions_root);
-        s.append(&self.receipts_root);
-        s.append(&self.logs_bloom);
-        s.append(&self.total_difficulty);
-        s.append(&self.number);
-        s.append(&self.gas_limit);
-        s.append(&self.gas_used);
-        s.append(&self.timestamp);
-        s.append(&self.hash);
-        s.append(&self.mix_data);
-        s.append(&self.nonce);
+        rlp_stream.append(&self.parent_hash);
+        rlp_stream.append(&self.uncles_hash);
+        rlp_stream.append(&self.author);
+        rlp_stream.append(&self.state_root);
+        rlp_stream.append(&self.transactions_root);
+        rlp_stream.append(&self.receipts_root);
+        rlp_stream.append(&self.logs_bloom);
+        rlp_stream.append(&self.total_difficulty);
+        rlp_stream.append(&self.number);
+        rlp_stream.append(&self.gas_limit);
+        rlp_stream.append(&self.gas_used);
+        rlp_stream.append(&self.timestamp);
+        rlp_stream.append(&self.hash);
+        rlp_stream.append(&self.mix_data);
+        rlp_stream.append(&self.nonce);
     }
 }
-

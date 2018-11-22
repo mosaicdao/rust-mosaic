@@ -18,12 +18,9 @@ use ethereum::types::{Block, Error, ErrorKind, Event, Signature};
 use futures::prelude::*;
 use rpassword;
 use std::time::Duration;
+use web3::contract::Contract;
 use web3::transports::Http;
 use web3::types::Block as Web3Block;
-use web3::types::H256 as Web3H256;
-use web3::types::U128 as Web3U128;
-use web3::types::U256 as Web3U256;
-use web3::contract::Contract;
 use web3::types::{Address, BlockId, BlockNumber, Bytes, FilterBuilder, Log, H160};
 use web3::Web3;
 
@@ -50,7 +47,10 @@ pub struct Ethereum {
 /// This enum represents all reactors which will react to block generation.
 #[derive(Debug, Clone)]
 pub enum Reactor {
-    BlockReporter { block_store_address: Address, validator_address: Address },
+    BlockReporter {
+        block_store_address: Address,
+        validator_address: Address,
+    },
 }
 
 trait IntoBlock {
@@ -59,13 +59,22 @@ trait IntoBlock {
 
 /// Anything that wants to react on block generation should implement this.
 trait Observe {
-    fn observe(&self, value: &Block, block_chain: &Ethereum);
+    fn observe(&self, block: &Block, block_chain: &Ethereum);
 }
 
 impl Observe for Reactor {
+    /// Defines how different reactor will react on block observation.
+    ///
+    /// # Arguments
+    ///
+    /// * `block` - The observed block.
+    /// * `block_chain` - Block chain on with reaction will happen.
     fn observe(&self, block: &Block, block_chain: &Ethereum) {
         match &self {
-            Reactor::BlockReporter { block_store_address, validator_address } => {
+            Reactor::BlockReporter {
+                block_store_address,
+                validator_address,
+            } => {
                 auxiliary::report_block(
                     &block_chain,
                     &block_chain.event_loop,
@@ -243,12 +252,17 @@ impl Ethereum {
     /// # Returns
     ///
     /// Returns a `contract` instance.
-    pub fn contract_instance(&self, contract_address: Address, abi: &[u8]) -> Contract<Http> {
-        Contract::from_json(
-            self.web3.eth(),
-            H160::from(contract_address),
-            abi,
-        ).unwrap()
+    pub fn contract_instance(
+        &self,
+        contract_address: Address,
+        abi: &[u8],
+    ) -> Result<Contract<Http>, Error> {
+        Contract::from_json(self.web3.eth(), H160::from(contract_address), abi).map_err(|error| {
+            Error::new(
+                ErrorKind::NodeError,
+                format!("Was not able to instantiate contract: {}", error),
+            )
+        })
     }
 
     /// Unlocks the validator account of this ethereum instance using the stored password.
@@ -290,12 +304,10 @@ impl Ethereum {
     /// * `block` - block to notify
     ///
     pub fn notify_all_observers(&mut self, block: &Block) {
-
         for observer in &self.observers {
             observer.observe(block, &self);
         }
     }
-
 }
 
 impl From<Log> for Event {

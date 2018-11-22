@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//!This module is about interaction with auxiliary block chain.
+//! This module is about interaction with auxiliary block chain.
 
 use futures::Future;
-use web3::contract::{Contract, Options};
-use web3::transports::Http;
-use web3::types::{H160, Address, H256};
 use rlp;
 use sha3::{Digest, Keccak256};
+use web3::contract::Options;
+use web3::types::{Address, H160, H256};
 
 use super::ethereum::Ethereum;
 use ethereum::types::{Block, Error, ErrorKind};
@@ -30,10 +29,10 @@ const REPORT_BLOCK_ESTIMATED_GAS: i32 = 3_000_000;
 ///
 /// # Arguments
 ///
-/// * `blockchain` - A blockchain object.
+/// * `block_chain` - A blockchain object.
 /// * `event_loop` - The reactor's event loop to handle the tasks spawned.
-/// * `block_store_address` - The address of origin block store.
-/// * `validator_address` - The address of origin validator address.
+/// * `block_store_address` - The address of block store.
+/// * `validator_address` - The address of validator address.
 pub fn report_block(
     block_chain: &Ethereum,
     event_loop: &tokio_core::reactor::Handle,
@@ -41,42 +40,56 @@ pub fn report_block(
     validator_address: Address,
     block: &Block,
 ) {
-    let encoded_block = rlp::encode(block);
+    info!("Reporting block for number {:?} ", block.number);
 
+    let encoded_block = rlp::encode(block);
     let block_hash = H256::from(Keccak256::digest(encoded_block.as_slice()).as_slice());
 
-    let contract: Contract<Http> = block_chain.contract_instance(
+    match block_chain.contract_instance(
         block_store_address,
-        include_bytes!( "../contract/abi/BlockStore.json"),
-    );
-    let event_loop_clone = event_loop.clone();
+        include_bytes!("../contract/abi/BlockStore.json"),
+    ) {
+        Ok(contract) => {
+            let event_loop_clone = event_loop.clone();
 
-    let call_future = contract.query("isBlockReported", block_hash, H160::from(validator_address), Options::default(), None)
-        .then(move |result: Result<bool, web3::contract::Error>| {
-            let block_reported = match result {
-                Ok(is_reported) => {
-                    if !is_reported {
-                        let report_future = contract
-                            .call("reportBlock", encoded_block, H160::from(validator_address), Options::with(|opt| {
-                                opt.gas = Some(REPORT_BLOCK_ESTIMATED_GAS.into())
-                            }))
-                            .then(move |tx| {
-                                println!("Block reported got tx: {:?}", tx);
-                                Ok(())
-                            });
-                        event_loop_clone.spawn(report_future);
-                    }
-                    Ok(!is_reported)
-                }
-                Err(e) => Err(Error::new(
-                    ErrorKind::NodeError,
-                    format!("Can't check if block is already reported: {}", e),
-                ))
-            };
-            println!("is reported {:?}", block_reported);
-            Ok(())
-        });
+            let call_future = contract
+                .query(
+                    "isBlockReported",
+                    block_hash,
+                    H160::from(validator_address),
+                    Options::default(),
+                    None,
+                ).then(move |result: Result<bool, web3::contract::Error>| {
+                    let block_reported = match result {
+                        Ok(is_reported) => {
+                            if !is_reported {
+                                let report_future = contract
+                                    .call(
+                                        "reportBlock",
+                                        encoded_block,
+                                        validator_address.into(),
+                                        Options::with(|opt| {
+                                            opt.gas = Some(REPORT_BLOCK_ESTIMATED_GAS.into())
+                                        }),
+                                    ).then(move |tx| {
+                                        info!("Block reported got tx: {:?}", tx);
+                                        Ok(())
+                                    });
+                                event_loop_clone.spawn(report_future);
+                            }
+                            Ok(!is_reported)
+                        }
+                        Err(e) => Err(Error::new(
+                            ErrorKind::NodeError,
+                            format!("Can't check if block is already reported: {}", e),
+                        )),
+                    };
+                    info!("Block reported {:?}", block_reported);
+                    Ok(())
+                });
 
-    event_loop.spawn(call_future);
+            event_loop.spawn(call_future);
+        }
+        Err(error) => error!("Contract instantiation failed {:?} ", error),
+    }
 }
-

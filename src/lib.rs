@@ -20,20 +20,20 @@
 #[macro_use]
 extern crate log;
 extern crate futures;
+extern crate rlp;
 extern crate rpassword;
+extern crate sha3;
 extern crate tokio_core;
 extern crate web3;
-extern crate rlp;
-extern crate sha3;
 
 pub use config::Config;
 use ethereum::{Ethereum, Reactor};
 use std::error::Error;
 
+mod auxiliary;
 pub mod config;
 mod ethereum;
 mod observer;
-mod auxiliary;
 
 /// Runs a mosaic node with the given configuration.
 /// Prints all accounts of the origin blockchain to std out.

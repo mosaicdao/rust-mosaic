@@ -110,7 +110,6 @@ impl Config {
                 None => panic!("An auxiliary validator address must be set"),
             };
 
-
         let origin_block_store_address =
             match Self::read_environment_variable(ENV_ORIGIN_BLOCK_STORE_ADDRESS, None) {
                 Some(auxiliary_validator_address) => auxiliary_validator_address
