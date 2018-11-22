@@ -144,7 +144,7 @@ struct EventFactory {
     /// The log's first topic must equal this topic.
     topic: H256,
     /// This function tries to convert the log into an event and returns a Result.
-    from_log: fn(&Log) -> Result<Event, Error>,
+    from_log: Box<Fn(&Log) -> Result<Event, Error>>,
 }
 
 impl EventFactory {
@@ -160,7 +160,7 @@ impl EventFactory {
             topic: "2b6cea6adc0c092ab654c32a0ee19b8ccddafbbc780bce0a5dd193bc30aa186e"
                 .parse::<H256>()
                 .unwrap(),
-            from_log: Self::block_finalized_from_log,
+            from_log: Box::new(Self::block_finalized_from_log),
         }
     }
 
@@ -176,7 +176,7 @@ impl EventFactory {
             topic: "721303f9f13058e7a8abd8036b2897d3cee27492b247eceddd6203ff601c006b"
                 .parse::<H256>()
                 .unwrap(),
-            from_log: Self::block_reported_from_log,
+            from_log: Box::new(Self::block_reported_from_log),
         }
     }
 
