@@ -32,6 +32,7 @@ use std::error::Error;
 pub mod config;
 mod error;
 mod ethereum;
+mod event;
 mod observer;
 
 /// Runs a mosaic node with the given configuration.

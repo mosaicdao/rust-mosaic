@@ -14,7 +14,7 @@
 
 //! This module covers blocks.
 
-use observer::Event;
+use event::Event;
 use std::fmt::{self, Display, Formatter};
 use web3::types::{H256, U128, U256};
 

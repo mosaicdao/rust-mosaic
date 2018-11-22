@@ -16,11 +16,9 @@
 //! It has a `run` function that creates connections to origin and auxiliary and then takes defined
 //! actions for each new block that it observes on the connected chains.
 
-mod event;
-
-pub use self::event::{Event, EventHandler};
 use super::error::Error;
 use super::ethereum::{Block, Ethereum};
+use super::event::{self, Event, EventHandler};
 use super::Config;
 use futures::prelude::*;
 use std::sync::Arc;

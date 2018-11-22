@@ -16,8 +16,8 @@
 
 pub use self::types::{Block, Signature};
 use error::{Error, ErrorKind};
+use event::EventHandler;
 use futures::prelude::*;
-use observer::EventHandler;
 use rpassword;
 use std::sync::Arc;
 use std::time::Duration;
