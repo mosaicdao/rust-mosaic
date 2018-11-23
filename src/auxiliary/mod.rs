@@ -14,13 +14,15 @@
 
 //! This module is about interaction with auxiliary block chain.
 
+use futures::future::Either;
 use futures::Future;
 use rlp;
 use web3::contract::Options;
-use web3::types::{Address, H160};
+use web3::types::Address;
 
-use super::ethereum::types::{Block, Error, ErrorKind};
+use super::ethereum::types::Block;
 use super::ethereum::Ethereum;
+use futures::future::ok;
 
 /// This is approximate gas consumed by report block operation.
 const REPORT_BLOCK_ESTIMATED_GAS: i32 = 3_000_000;
@@ -50,20 +52,20 @@ pub fn report_block(
         include_bytes!("../contract/abi/BlockStore.json"),
     ) {
         Ok(contract) => {
-            let event_loop_clone = event_loop.clone();
-
             let call_future = contract
                 .query(
                     "isBlockReported",
                     block_hash,
-                    H160::from(validator_address),
+                    validator_address,
                     Options::default(),
                     None,
-                ).then(move |result: Result<bool, web3::contract::Error>| {
-                    let block_reported = match result {
-                        Ok(is_reported) => {
-                            if !is_reported {
-                                let report_future = contract
+                ).then(
+                    move |result: Result<bool, web3::contract::Error>| match result {
+                        Ok(is_reported) => if is_reported {
+                            Either::A(ok(()))
+                        } else {
+                            Either::B(
+                                contract
                                     .call(
                                         "reportBlock",
                                         encoded_block,
@@ -74,19 +76,18 @@ pub fn report_block(
                                     ).then(move |tx| {
                                         info!("Block reported got tx: {:?}", tx);
                                         Ok(())
-                                    });
-                                event_loop_clone.spawn(report_future);
-                            }
-                            Ok(!is_reported)
+                                    }),
+                            )
+                        },
+                        Err(error) => {
+                            error!(
+                                "Error while checking if block is already reported{:?}",
+                                error
+                            );
+                            Either::A(ok(()))
                         }
-                        Err(e) => Err(Error::new(
-                            ErrorKind::NodeError,
-                            format!("Can't check if block is already reported: {}", e),
-                        )),
-                    };
-                    info!("Block reported {:?}", block_reported);
-                    Ok(())
-                });
+                    },
+                );
 
             event_loop.spawn(call_future);
         }

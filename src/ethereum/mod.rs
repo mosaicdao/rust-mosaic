@@ -24,8 +24,7 @@ use web3::types::Block as Web3Block;
 use web3::types::{Address, BlockId, BlockNumber, Bytes, FilterBuilder, Log, H160};
 use web3::Web3;
 
-use super::auxiliary;
-use reactor::{React, Reactor};
+use super::reactor::{React, Reactor};
 
 pub mod types;
 
