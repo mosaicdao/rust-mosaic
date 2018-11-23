@@ -52,7 +52,7 @@ pub fn run(origin: &Ethereum, auxiliary: &Ethereum, event_loop: &tokio_core::rea
                 None => return Ok(()),
             };
 
-            cloned_origin.notify_all_observers(&block);
+            cloned_origin.notify_reactors(&block);
             Ok(())
         });
 
@@ -69,7 +69,7 @@ pub fn run(origin: &Ethereum, auxiliary: &Ethereum, event_loop: &tokio_core::rea
                 None => return Ok(()),
             };
 
-            cloned_auxiliary.notify_all_observers(&block);
+            cloned_auxiliary.notify_reactors(&block);
             Ok(())
         });
 

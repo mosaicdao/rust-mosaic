@@ -22,7 +22,7 @@ extern crate log;
 extern crate futures;
 extern crate rlp;
 extern crate rpassword;
-extern crate sha3;
+extern crate tiny_keccak;
 extern crate tokio_core;
 extern crate web3;
 
@@ -67,8 +67,8 @@ pub fn run(config: &Config) -> Result<(), Box<Error>> {
         validator_address: config.auxiliary_validator_address(),
     };
 
-    origin.register_observer(origin_block_reporter);
-    auxiliary.register_observer(auxiliary_block_reporter);
+    origin.register_reactor(origin_block_reporter);
+    auxiliary.register_reactor(auxiliary_block_reporter);
 
     observer::run(&origin, &auxiliary, &event_loop.handle());
 

@@ -40,8 +40,8 @@ pub struct Ethereum {
     polling_interval: Duration,
     /// A handle to the event loop that runs mosaic.
     event_loop: Box<tokio_core::reactor::Handle>,
-    /// List of block observers. These are notified when any new block is generated.
-    observers: Vec<Reactor>,
+    /// List of block reactors. These are notified when any new block is generated.
+    reactors: Vec<Reactor>,
 }
 
 /// This enum represents all reactors which will react to block generation.
@@ -58,18 +58,18 @@ trait IntoBlock {
 }
 
 /// Anything that wants to react on block generation should implement this.
-trait Observe {
-    fn observe(&self, block: &Block, block_chain: &Ethereum);
+trait React {
+    fn react(&self, block: &Block, block_chain: &Ethereum);
 }
 
-impl Observe for Reactor {
+impl React for Reactor {
     /// Defines how different reactor will react on block observation.
     ///
     /// # Arguments
     ///
     /// * `block` - The observed block.
     /// * `block_chain` - Block chain on with reaction will happen.
-    fn observe(&self, block: &Block, block_chain: &Ethereum) {
+    fn react(&self, block: &Block, block_chain: &Ethereum) {
         match &self {
             Reactor::BlockReporter {
                 block_store_address,
@@ -118,7 +118,7 @@ impl Ethereum {
             password,
             polling_interval,
             event_loop,
-            observers: Vec::new(),
+            reactors: Vec::new(),
         }
     }
 
@@ -287,14 +287,14 @@ impl Ethereum {
             })
     }
 
-    /// Register a block observer.
+    /// Register a block reactor.
     ///
     /// # Arguments
     ///
-    /// * `observer` - Any object which implements observer traits
+    /// * `reactor` - Any object which implements reactor traits
     ///
-    pub fn register_observer(&mut self, observer: Reactor) {
-        self.observers.push(observer);
+    pub fn register_reactor(&mut self, reactor: Reactor) {
+        self.reactors.push(reactor);
     }
 
     /// Notify all the block observers
@@ -303,9 +303,9 @@ impl Ethereum {
     ///
     /// * `block` - block to notify
     ///
-    pub fn notify_all_observers(&mut self, block: &Block) {
-        for observer in &self.observers {
-            observer.observe(block, &self);
+    pub fn notify_reactors(&mut self, block: &Block) {
+        for reactor in &self.reactors {
+            reactor.react(block, &self);
         }
     }
 }
