@@ -25,6 +25,7 @@ use web3::types::{Address, BlockId, BlockNumber, Bytes, FilterBuilder, Log, H160
 use web3::Web3;
 
 use super::auxiliary;
+use reactor::{React, Reactor};
 
 pub mod types;
 
@@ -44,47 +45,8 @@ pub struct Ethereum {
     reactors: Vec<Reactor>,
 }
 
-/// This enum represents all reactors which will react to block generation.
-#[derive(Debug, Clone)]
-pub enum Reactor {
-    BlockReporter {
-        block_store_address: Address,
-        validator_address: Address,
-    },
-}
-
 trait IntoBlock {
     fn into_block(&self) -> Result<Block, Error>;
-}
-
-/// Anything that wants to react on block generation should implement this.
-trait React {
-    fn react(&self, block: &Block, block_chain: &Ethereum);
-}
-
-impl React for Reactor {
-    /// Defines how different reactor will react on block observation.
-    ///
-    /// # Arguments
-    ///
-    /// * `block` - The observed block.
-    /// * `block_chain` - Block chain on with reaction will happen.
-    fn react(&self, block: &Block, block_chain: &Ethereum) {
-        match &self {
-            Reactor::BlockReporter {
-                block_store_address,
-                validator_address,
-            } => {
-                auxiliary::report_block(
-                    &block_chain,
-                    &block_chain.event_loop,
-                    block_store_address.clone(),
-                    validator_address.clone(),
-                    block,
-                );
-            }
-        }
-    }
 }
 
 impl Ethereum {
@@ -305,7 +267,7 @@ impl Ethereum {
     ///
     pub fn notify_reactors(&mut self, block: &Block) {
         for reactor in &self.reactors {
-            reactor.react(block, &self);
+            reactor.react(block, &self, &self.event_loop);
         }
     }
 }

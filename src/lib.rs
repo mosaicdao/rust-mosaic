@@ -27,13 +27,15 @@ extern crate tokio_core;
 extern crate web3;
 
 pub use config::Config;
-use ethereum::{Ethereum, Reactor};
+use ethereum::Ethereum;
+use reactor::Reactor;
 use std::error::Error;
 
 mod auxiliary;
 pub mod config;
 mod ethereum;
 mod observer;
+mod reactor;
 
 /// Runs a mosaic node with the given configuration.
 /// Prints all accounts of the origin blockchain to std out.
@@ -57,19 +59,7 @@ pub fn run(config: &Config) -> Result<(), Box<Error>> {
         Box::new(event_loop.handle()),
     );
 
-    let origin_block_reporter = Reactor::BlockReporter {
-        block_store_address: config.origin_block_store_address(),
-        validator_address: config.origin_validator_address(),
-    };
-
-    let auxiliary_block_reporter = Reactor::BlockReporter {
-        block_store_address: config.auxiliary_block_store_address(),
-        validator_address: config.auxiliary_validator_address(),
-    };
-
-    origin.register_reactor(origin_block_reporter);
-    auxiliary.register_reactor(auxiliary_block_reporter);
-
+    Reactor::register(&mut origin, &mut auxiliary, config);
     observer::run(&origin, &auxiliary, &event_loop.handle());
 
     loop {
