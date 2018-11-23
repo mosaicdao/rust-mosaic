@@ -14,8 +14,10 @@
 
 //! This module covers blocks.
 
+use rlp;
 use rlp::{Encodable, RlpStream};
 use std::fmt::{self, Display, Formatter};
+use tiny_keccak::Keccak;
 use web3::types::{Address, Bytes, H160, H2048, H256, U128, U256};
 
 /// A block represents a block of a blockchain.
@@ -48,6 +50,17 @@ impl Display for Block {
         Ok(())
     }
 }
+
+impl Block {
+    /// Calculate hash of block.
+    pub fn hash(&self) -> H256 {
+        let encoded_block = rlp::encode(self);
+        let mut res: [u8; 32] = [0; 32];
+        Keccak::keccak256(encoded_block.as_slice(), &mut res);
+        H256::from(res)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Event {
     pub address: Address,

@@ -16,13 +16,13 @@
 
 use futures::Future;
 use rlp;
-use sha3::{Digest, Keccak256};
 use web3::contract::Options;
-use web3::types::{Address, H160, H256};
+use web3::types::{Address, H160};
 
+use super::ethereum::types::{Block, Error, ErrorKind};
 use super::ethereum::Ethereum;
-use ethereum::types::{Block, Error, ErrorKind};
 
+/// This is approximate gas consumed by report block operation.
 const REPORT_BLOCK_ESTIMATED_GAS: i32 = 3_000_000;
 
 /// Reports block on block store if not already reported.
@@ -32,7 +32,7 @@ const REPORT_BLOCK_ESTIMATED_GAS: i32 = 3_000_000;
 /// * `block_chain` - A blockchain object.
 /// * `event_loop` - The reactor's event loop to handle the tasks spawned.
 /// * `block_store_address` - The address of block store.
-/// * `validator_address` - The address of validator address.
+/// * `validator_address` - The address of validator.
 pub fn report_block(
     block_chain: &Ethereum,
     event_loop: &tokio_core::reactor::Handle,
@@ -43,7 +43,7 @@ pub fn report_block(
     info!("Reporting block for number {:?} ", block.number);
 
     let encoded_block = rlp::encode(block);
-    let block_hash = H256::from(Keccak256::digest(encoded_block.as_slice()).as_slice());
+    let block_hash = block.hash();
 
     match block_chain.contract_instance(
         block_store_address,
