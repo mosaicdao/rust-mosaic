@@ -15,30 +15,32 @@
 //! This module is about interaction with auxiliary block chain.
 
 use futures::future::Either;
+use futures::future::IntoFuture;
 use futures::Future;
 use rlp;
+use std::sync::Arc;
+use web3::contract::Contract;
 use web3::contract::Options;
+use web3::transports::Http;
 use web3::types::Address;
 
 use super::ethereum::types::Block;
-use super::ethereum::Ethereum;
-use futures::future::ok;
 
-/// This is approximate gas consumed by report block operation.
+/// This is gas consumed by report block operation. This is calculated by estimate gas
+/// function from web3.
 const REPORT_BLOCK_ESTIMATED_GAS: i32 = 3_000_000;
 
 /// Reports block on block store if not already reported.
 ///
 /// # Arguments
 ///
-/// * `block_chain` - A blockchain object.
 /// * `event_loop` - The reactor's event loop to handle the tasks spawned.
-/// * `block_store_address` - The address of block store.
+/// * `block_store_contract` - The block store contract instance.
 /// * `validator_address` - The address of validator.
+/// * `block` - The observed block which needs to be reported.
 pub fn report_block(
-    block_chain: &Ethereum,
     event_loop: &tokio_core::reactor::Handle,
-    block_store_address: Address,
+    block_store_contract: &Arc<Contract<Http>>,
     validator_address: Address,
     block: &Block,
 ) {
@@ -46,51 +48,43 @@ pub fn report_block(
 
     let encoded_block = rlp::encode(block);
     let block_hash = block.hash();
-
-    match block_chain.contract_instance(
-        block_store_address,
-        include_bytes!("../contract/abi/BlockStore.json"),
-    ) {
-        Ok(contract) => {
-            let call_future = contract
-                .query(
-                    "isBlockReported",
-                    block_hash,
-                    validator_address,
-                    Options::default(),
-                    None,
-                ).then(
-                    move |result: Result<bool, web3::contract::Error>| match result {
-                        Ok(is_reported) => if is_reported {
-                            Either::A(ok(()))
-                        } else {
-                            Either::B(
-                                contract
-                                    .call(
-                                        "reportBlock",
-                                        encoded_block,
-                                        validator_address.into(),
-                                        Options::with(|opt| {
-                                            opt.gas = Some(REPORT_BLOCK_ESTIMATED_GAS.into())
-                                        }),
-                                    ).then(move |tx| {
-                                        info!("Block reported got tx: {:?}", tx);
-                                        Ok(())
-                                    }),
-                            )
-                        },
-                        Err(error) => {
-                            error!(
-                                "Error while checking if block is already reported{:?}",
-                                error
-                            );
-                            Either::A(ok(()))
-                        }
-                    },
-                );
-
-            event_loop.spawn(call_future);
-        }
-        Err(error) => error!("Contract instantiation failed {:?} ", error),
-    }
+    let block_store_contract = Arc::clone(&block_store_contract);
+    let call_future = block_store_contract
+        .query(
+            "isBlockReported",
+            block_hash,
+            validator_address,
+            Options::default(),
+            None,
+        ).then(
+            move |result: Result<bool, web3::contract::Error>| match result {
+                Ok(is_reported) => if is_reported {
+                    Either::A(Ok(()).into_future())
+                } else {
+                    Either::B(
+                        block_store_contract
+                            .call(
+                                "reportBlock",
+                                encoded_block,
+                                validator_address.into(),
+                                Options::with(|opt| {
+                                    opt.gas = Some(REPORT_BLOCK_ESTIMATED_GAS.into())
+                                }),
+                            ).then(move |tx| {
+                                info!("Block reported got tx: {:?}", tx);
+                                Ok(())
+                            }),
+                    )
+                },
+                Err(error) => {
+                    error!(
+                        "Error while checking if block is already reported{:?}",
+                        error
+                    );
+                    // Event loop spawn expects certain types. It doesn't support err types.
+                    Either::A(Ok(()).into_future())
+                }
+            },
+        );
+    event_loop.spawn(call_future);
 }

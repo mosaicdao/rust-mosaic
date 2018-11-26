@@ -17,14 +17,17 @@
 use auxiliary;
 use ethereum::types::block::Block;
 use ethereum::Ethereum;
+use std::sync::Arc;
+use web3::contract::Contract;
+use web3::transports::Http;
 use web3::types::Address;
+
 use Config;
 
 /// This enum represents all reactors which will react to block generation.
-#[derive(Debug, Clone)]
 pub enum Reactor {
     BlockReporter {
-        block_store_address: Address,
+        block_store: Arc<Contract<Http>>,
         validator_address: Address,
     },
 }
@@ -32,18 +35,12 @@ pub enum Reactor {
 /// Anything that wants to react on block generation should implement this.
 pub trait React {
     /// Defines how different reactor will react on block observation.
-    ///
+    ///cargo
     /// # Arguments
     ///
     /// * `block` - The observed block.
-    /// * `block_chain` - Block chain on with reaction will happen.
     /// * `event_loop` - The reactor's event loop to handle the tasks spawned.
-    fn react(
-        &self,
-        block: &Block,
-        block_chain: &Ethereum,
-        event_loop: &tokio_core::reactor::Handle,
-    );
+    fn react(&self, block: &Block, event_loop: &tokio_core::reactor::Handle);
 }
 
 impl React for Reactor {
@@ -52,26 +49,14 @@ impl React for Reactor {
     /// # Arguments
     ///
     /// * `block` - The observed block.
-    /// * `block_chain` - Block chain on with reaction will happen.
     /// * `event_loop` - The reactor's event loop to handle the tasks spawned.
-    fn react(
-        &self,
-        block: &Block,
-        block_chain: &Ethereum,
-        event_loop: &tokio_core::reactor::Handle,
-    ) {
-        match &self {
+    fn react(&self, block: &Block, event_loop: &tokio_core::reactor::Handle) {
+        match self {
             Reactor::BlockReporter {
-                block_store_address,
+                block_store,
                 validator_address,
             } => {
-                auxiliary::report_block(
-                    &block_chain,
-                    event_loop,
-                    block_store_address.clone(),
-                    validator_address.clone(),
-                    block,
-                );
+                auxiliary::report_block(event_loop, block_store, validator_address.clone(), block);
             }
         }
     }
@@ -86,17 +71,36 @@ impl Reactor {
     /// * `auxiliary` - A blockchain object that points to auxiliary.
     /// * `config` - A configuration to register reactors.
     pub fn register(origin: &mut Ethereum, auxiliary: &mut Ethereum, config: &Config) {
-        let origin_block_reporter = Reactor::BlockReporter {
-            block_store_address: config.origin_block_store_address(),
-            validator_address: config.origin_validator_address(),
+        match origin.contract_instance(
+            config.origin_block_store_address(),
+            include_bytes!("./contract/abi/BlockStore.json"),
+        ) {
+            Ok(contract) => {
+                let origin_block_reporter = Reactor::BlockReporter {
+                    block_store: Arc::new(contract),
+                    validator_address: config.origin_validator_address(),
+                };
+                origin.register_reactor(origin_block_reporter);
+            }
+            Err(error) => {
+                error!("Contract instantiation failed {:?} ", error);
+            }
         };
 
-        let auxiliary_block_reporter = Reactor::BlockReporter {
-            block_store_address: config.auxiliary_block_store_address(),
-            validator_address: config.auxiliary_validator_address(),
-        };
-
-        origin.register_reactor(origin_block_reporter);
-        auxiliary.register_reactor(auxiliary_block_reporter);
+        match auxiliary.contract_instance(
+            config.auxiliary_block_store_address(),
+            include_bytes!("./contract/abi/BlockStore.json"),
+        ) {
+            Ok(contract) => {
+                let auxiliary_block_reporter = Reactor::BlockReporter {
+                    block_store: Arc::new(contract),
+                    validator_address: config.auxiliary_validator_address(),
+                };
+                auxiliary.register_reactor(auxiliary_block_reporter);
+            }
+            Err(error) => {
+                error!("Contract instantiation failed {:?} ", error);
+            }
+        }
     }
 }

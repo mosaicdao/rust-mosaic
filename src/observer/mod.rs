@@ -16,6 +16,7 @@
 
 use super::ethereum::Ethereum;
 use futures::prelude::*;
+use std::sync::Arc;
 
 /// Runs a mosaic observer. The observer observes blocks from origin and auxiliary. When a new block
 /// is observed, the observer hands new  tasks to the reactor, based on the block origin and
@@ -28,12 +29,16 @@ use futures::prelude::*;
 /// * `origin` - A blockchain object that points to origin.
 /// * `auxiliary` - A blockchain object that points to auxiliary.
 /// * `event_loop` - The reactor's event loop to handle the tasks spawned by this observer.
-pub fn run(origin: &Ethereum, auxiliary: &Ethereum, event_loop: &tokio_core::reactor::Handle) {
+pub fn run(
+    origin: Arc<Ethereum>,
+    auxiliary: Arc<Ethereum>,
+    event_loop: &tokio_core::reactor::Handle,
+) {
     let origin_stream = origin.stream_blocks();
     let auxiliary_stream = auxiliary.stream_blocks();
 
-    let mut cloned_origin = origin.clone();
-    let mut cloned_auxiliary = auxiliary.clone();
+    let cloned_origin = Arc::clone(&origin);
+    let cloned_auxiliary = Arc::clone(&auxiliary);
     // Using `then` to catch errors. If the errors weren't caught, the stream would terminate after
     // an error. However, we want to continue polling the node for new blocks, even if there was an
     // error with a particular block. In the `for_each` block we need to then check for an existing

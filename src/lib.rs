@@ -30,6 +30,7 @@ pub use config::Config;
 use ethereum::Ethereum;
 use reactor::Reactor;
 use std::error::Error;
+use std::sync::Arc;
 
 mod auxiliary;
 pub mod config;
@@ -60,7 +61,7 @@ pub fn run(config: &Config) -> Result<(), Box<Error>> {
     );
 
     Reactor::register(&mut origin, &mut auxiliary, config);
-    observer::run(&origin, &auxiliary, &event_loop.handle());
+    observer::run(Arc::new(origin), Arc::new(auxiliary), &event_loop.handle());
 
     loop {
         event_loop.turn(None);

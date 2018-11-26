@@ -29,7 +29,6 @@ use super::reactor::{React, Reactor};
 pub mod types;
 
 /// This struct stores a connection to an Ethereum node.
-#[derive(Clone)]
 pub struct Ethereum {
     web3: Web3<Http>,
     validator: H160,
@@ -218,7 +217,7 @@ impl Ethereum {
         contract_address: Address,
         abi: &[u8],
     ) -> Result<Contract<Http>, Error> {
-        Contract::from_json(self.web3.eth(), H160::from(contract_address), abi).map_err(|error| {
+        Contract::from_json(self.web3.eth(), contract_address, abi).map_err(|error| {
             Error::new(
                 ErrorKind::NodeError,
                 format!("Was not able to instantiate contract: {}", error),
@@ -264,10 +263,10 @@ impl Ethereum {
     ///
     /// * `block` - block to notify
     ///
-    pub fn notify_reactors(&mut self, block: &Block) {
-        for reactor in &self.reactors {
-            reactor.react(block, &self, &self.event_loop);
-        }
+    pub fn notify_reactors(&self, block: &Block) {
+        self.reactors
+            .iter()
+            .for_each(|reactor| reactor.react(block, &self.event_loop));
     }
 }
 
