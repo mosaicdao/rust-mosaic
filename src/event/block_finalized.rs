@@ -21,7 +21,7 @@ use web3::types::{Log, H256};
 /// A factory that produces events of type "block finalized".
 pub struct BlockFinalizedFactory {
     /// The log topic that matches the event that this factory produces.
-    pub topic: H256,
+    topic: H256,
 }
 
 impl Default for BlockFinalizedFactory {
