@@ -63,46 +63,36 @@ impl Config {
     /// This function panics if a mandatory value cannot be read and there is no default.
     /// This function also panics if a value cannot be parsed into its appropriate type.
     pub fn new() -> Config {
-        let origin_endpoint = match Self::read_environment_variable(
-            ENV_ORIGIN_ENDPOINT,
-            Some(DEFAULT_ORIGIN_ENDPOINT),
-        ) {
-            Some(origin_endpoint) => origin_endpoint,
-            None => panic!("An origin endpoint must be set"),
-        };
-        let auxiliary_endpoint = match Self::read_environment_variable(
+        let origin_endpoint =
+            Self::read_environment_variable(ENV_ORIGIN_ENDPOINT, Some(DEFAULT_ORIGIN_ENDPOINT))
+                .expect("An origin endpoint must be set");
+        let auxiliary_endpoint = Self::read_environment_variable(
             ENV_AUXILIARY_ENDPOINT,
             Some(DEFAULT_AUXILIARY_ENDPOINT),
-        ) {
-            Some(auxiliary_endpoint) => auxiliary_endpoint,
-            None => panic!("An auxiliary endpoint must be set"),
-        };
+        ).expect("An auxiliary endpoint must be set");
 
-        let origin_core_address =
-            match Self::read_environment_variable(ENV_ORIGIN_CORE_ADDRESS, None) {
-                Some(origin_core_address) => Some(
-                    origin_core_address
-                        .parse::<Address>()
-                        .expect("The origin core address cannot be parsed"),
-                ),
-                None => None,
-            };
+        let origin_core_address = Self::read_environment_variable(ENV_ORIGIN_CORE_ADDRESS, None)
+            .map(|origin_core_address| {
+                origin_core_address
+                    .parse::<Address>()
+                    .expect("The origin core address cannot be parsed")
+            });
 
         let origin_validator_address =
-            match Self::read_environment_variable(ENV_ORIGIN_VALIDATOR_ADDRESS, None) {
-                Some(origin_validator_address) => origin_validator_address
-                    .parse::<Address>()
-                    .expect("The origin validator address cannot be parsed"),
-                None => panic!("An origin validator address must be set"),
-            };
+            Self::read_environment_variable(ENV_ORIGIN_VALIDATOR_ADDRESS, None)
+                .map(|origin_validator_address| {
+                    origin_validator_address
+                        .parse::<Address>()
+                        .expect("The origin validator address cannot be parsed")
+                }).expect("An origin validator address must be set");
 
         let auxiliary_validator_address =
-            match Self::read_environment_variable(ENV_AUXILIARY_VALIDATOR_ADDRESS, None) {
-                Some(auxiliary_validator_address) => auxiliary_validator_address
-                    .parse::<Address>()
-                    .expect("The auxiliary validator address cannot be parsed"),
-                None => panic!("An auxiliary validator address must be set"),
-            };
+            Self::read_environment_variable(ENV_AUXILIARY_VALIDATOR_ADDRESS, None)
+                .map(|auxiliary_validator_address| {
+                    auxiliary_validator_address
+                        .parse::<Address>()
+                        .expect("The auxiliary validator address cannot be parsed")
+                }).expect("An auxiliary validator address must be set");
 
         let origin_polling_interval = match Self::read_environment_variable(
             ENV_ORIGIN_POLLING_INTERVAL,
@@ -217,7 +207,7 @@ impl Config {
 ///
 /// * `string` - A string that holds a number, e.g. "15".
 fn string_to_seconds(string: &str) -> Result<Duration, Box<Error>> {
-    let seconds = try!(string.parse::<u64>());
+    let seconds = string.parse::<u64>()?;
 
     Ok(Duration::from_secs(seconds))
 }

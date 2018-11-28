@@ -94,23 +94,24 @@ impl Ethereum {
             .flatten_stream();
 
         // Web3 blocks is a stream of block futures, mapped from a stream of block hashes.
-        let web3_clone = self.web3.clone();
         let web3_blocks = block_hashes
             .map_err(|error| {
                 Error::new(
                     ErrorKind::NodeError,
                     format!("Error while streaming blocks from node: {}", error),
                 )
-            }).and_then(move |block_hash| {
-                web3_clone
-                    .eth()
-                    .block(BlockId::from(block_hash))
-                    .map_err(|error| {
-                        Error::new(
-                            ErrorKind::NodeError,
-                            format!("Was not able to retrieve block: {}", error),
-                        )
-                    })
+            }).and_then({
+                let web3 = self.web3.clone();
+                move |block_hash| {
+                    web3.eth()
+                        .block(BlockId::from(block_hash))
+                        .map_err(|error| {
+                            Error::new(
+                                ErrorKind::NodeError,
+                                format!("Was not able to retrieve block: {}", error),
+                            )
+                        })
+                }
             });
 
         // Returns a stream of blocks, mapped from a stream of web3 block futures.
@@ -131,33 +132,34 @@ impl Ethereum {
         });
 
         // Get all events for that block from the node and add them to the block struct.
-        let web3_clone = self.web3.clone();
-        blocks.and_then(move |mut block| {
-            let block_number: u64 = block.number.low_u64();
-            let block_number = BlockNumber::from(block_number);
+        blocks.and_then({
+            let web3 = self.web3.clone();
+            move |mut block| {
+                let block_number: u64 = block.number.low_u64();
+                let block_number = BlockNumber::from(block_number);
 
-            // Filter for all logs of the current block.
-            let filter_builder = FilterBuilder::default();
-            let log_filter = filter_builder
-                .from_block(block_number)
-                .to_block(block_number)
-                .build();
+                // Filter for all logs of the current block.
+                let filter_builder = FilterBuilder::default();
+                let log_filter = filter_builder
+                    .from_block(block_number)
+                    .to_block(block_number)
+                    .build();
 
-            web3_clone
-                .eth()
-                .logs(log_filter)
-                .map_err(|error| {
-                    Error::new(
-                        ErrorKind::NodeError,
-                        format!("Error while retrieving logs from node: {}", error),
-                    )
-                }).map(|logs| {
-                    for log in logs {
-                        block.events.push(log.into());
-                    }
+                web3.eth()
+                    .logs(log_filter)
+                    .map_err(|error| {
+                        Error::new(
+                            ErrorKind::NodeError,
+                            format!("Error while retrieving logs from node: {}", error),
+                        )
+                    }).map(|logs| {
+                        for log in logs {
+                            block.events.push(log.into());
+                        }
 
-                    block
-                })
+                        block
+                    })
+            }
         })
     }
 
@@ -184,16 +186,17 @@ impl Ethereum {
     ///
     /// Returns a `Signature` of the signed data.
     pub fn sign(&self, data: Bytes) -> impl Future<Item = Signature, Error = Error> {
-        let web3_clone = self.web3.clone();
-        let validator = self.validator;
-
-        self.unlock_account(None).and_then(move |_| {
-            web3_clone.eth().sign(validator, data).map_err(|error| {
-                Error::new(
-                    ErrorKind::NodeError,
-                    format!("Was not able to sign data: {}", error),
-                )
-            })
+        self.unlock_account(None).and_then({
+            let web3 = self.web3.clone();
+            let validator = self.validator;
+            move |_| {
+                web3.eth().sign(validator, data).map_err(|error| {
+                    Error::new(
+                        ErrorKind::NodeError,
+                        format!("Was not able to sign data: {}", error),
+                    )
+                })
+            }
         })
     }
 
