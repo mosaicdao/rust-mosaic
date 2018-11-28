@@ -18,7 +18,7 @@
 
 use super::error::Error;
 use super::ethereum::{Block, Ethereum};
-use super::event::{self, Event, EventHandler};
+use super::event;
 use super::Config;
 use futures::prelude::*;
 use std::sync::Arc;
