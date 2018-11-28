@@ -14,9 +14,10 @@
 
 //! This module is about observing blockchains.
 
-use super::ethereum::Ethereum;
 use futures::prelude::*;
 use std::sync::Arc;
+
+use ethereum::Ethereum;
 
 /// Runs a mosaic observer. The observer observes blocks from origin and auxiliary. When a new block
 /// is observed, the observer hands new  tasks to the reactor, based on the block origin and

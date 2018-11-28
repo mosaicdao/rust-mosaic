@@ -27,12 +27,11 @@ extern crate tokio_core;
 extern crate web3;
 
 pub use config::Config;
+use ethereum::contract::ContractInstances;
 use ethereum::Ethereum;
-use reactor::Reactor;
 use std::error::Error;
 use std::sync::Arc;
 
-mod auxiliary;
 pub mod config;
 mod ethereum;
 mod observer;
@@ -59,8 +58,16 @@ pub fn run(config: &Config) -> Result<(), Box<Error>> {
         config.auxiliary_polling_interval(),
         Box::new(event_loop.handle()),
     );
+    let mut contract_instances = ContractInstances::new();
 
-    Reactor::register(&mut origin, &mut auxiliary, config);
+    if let Err(err) = contract_instances.initialize(&origin, &auxiliary, config) {
+        panic!("Error instancing contracts {:?}", err)
+    };
+
+    if let Err(err) = reactor::register(&mut origin, &mut auxiliary, &contract_instances, config) {
+        panic!("Error registering reactors {:?}", err)
+    };
+
     observer::run(Arc::new(origin), Arc::new(auxiliary), &event_loop.handle());
 
     loop {

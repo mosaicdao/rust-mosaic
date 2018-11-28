@@ -14,7 +14,6 @@
 
 //! This module implements the connection to an Ethereum blockchain.
 
-use ethereum::types::{Block, Error, ErrorKind, Event, Signature};
 use futures::prelude::*;
 use rpassword;
 use std::time::Duration;
@@ -24,8 +23,10 @@ use web3::types::Block as Web3Block;
 use web3::types::{Address, BlockId, BlockNumber, Bytes, FilterBuilder, Log, H160};
 use web3::Web3;
 
-use super::reactor::{React, Reactor};
+use ethereum::types::{Block, Error, ErrorKind, Event, Signature};
+use reactor::React;
 
+pub mod contract;
 pub mod types;
 
 /// This struct stores a connection to an Ethereum node.
@@ -40,7 +41,7 @@ pub struct Ethereum {
     /// A handle to the event loop that runs mosaic.
     event_loop: Box<tokio_core::reactor::Handle>,
     /// List of block reactors. These are notified when any new block is generated.
-    reactors: Vec<Reactor>,
+    reactors: Vec<Box<React>>,
 }
 
 trait IntoBlock {
@@ -253,7 +254,7 @@ impl Ethereum {
     ///
     /// * `reactor` - Any object which implements reactor traits
     ///
-    pub fn register_reactor(&mut self, reactor: Reactor) {
+    pub fn register_reactor(&mut self, reactor: Box<React>) {
         self.reactors.push(reactor);
     }
 
