@@ -25,6 +25,7 @@ use web3::transports::Http;
 use web3::types::Address;
 
 use ethereum::types::block::Block;
+use ethereum::Ethereum;
 use reactor::React;
 use web3::contract::Error;
 
@@ -35,6 +36,8 @@ const REPORT_BLOCK_ESTIMATED_GAS: i32 = 3_000_000;
 pub struct BlockReporter {
     block_store: Arc<Contract<Http>>,
     from: Address,
+    event_loop: Box<tokio_core::reactor::Handle>,
+    block_chain: Arc<Ethereum>,
 }
 
 impl BlockReporter {
@@ -44,8 +47,20 @@ impl BlockReporter {
     ///
     /// * `block_store` - Contract instance of block store.
     /// * `from` - Address which does block reporting.
-    pub fn new(block_store: Arc<Contract<Http>>, from: Address) -> Self {
-        BlockReporter { block_store, from }
+    /// * `event_loop` - The reactor's event loop to handle the tasks spawned by this observer.
+    /// * `block_chain` - Block chain object, where block reporting will happen.
+    pub fn new(
+        block_store: Arc<Contract<Http>>,
+        from: Address,
+        event_loop: Box<tokio_core::reactor::Handle>,
+        block_chain: Arc<Ethereum>,
+    ) -> Self {
+        BlockReporter {
+            block_store,
+            from,
+            event_loop,
+            block_chain,
+        }
     }
 }
 
@@ -55,54 +70,58 @@ impl React for BlockReporter {
     /// # Arguments
     ///
     /// * `block` - The observed block.
-    /// * `event_loop` - The reactor's event loop to handle the tasks spawned.
-    fn react(&self, block: &Block, event_loop: &tokio_core::reactor::Handle) {
+    fn react(&self, block: &Block) {
         info!("Reporting block for number {:?} ", block.number);
 
         let encoded_block = rlp::encode(block);
         let block_hash = block.hash();
-        let call_future = self
-            .block_store
-            .query(
-                "isBlockReported",
-                block_hash,
-                self.from,
-                Options::default(),
-                None,
-            ).then({
-                let block_store_contract = Arc::clone(&self.block_store);
-                let from = self.from.clone();
-                move |result: Result<bool, web3::contract::Error>| match result {
-                    Ok(is_reported) => if is_reported {
-                        Either::A(Ok(()).into_future())
-                    } else {
-                        Either::B(
-                            block_store_contract
-                                .call(
-                                    "reportBlock",
-                                    encoded_block,
-                                    from,
-                                    Options::with(|opt| {
-                                        opt.gas = Some(REPORT_BLOCK_ESTIMATED_GAS.into())
+        let block_store = Arc::clone(&self.block_store);
+        let block_chain = &self.block_chain;
+        let from = self.from;
+
+        // Unlocking account with zero time interval, which unlocks account till node is up.
+        let call_future = block_chain.unlock_account(Some(0)).then(move |_| {
+            block_store
+                .query(
+                    "isBlockReported",
+                    block_hash,
+                    from,
+                    Options::default(),
+                    None,
+                ).then({
+                    move |result: Result<bool, web3::contract::Error>| match result {
+                        Ok(is_reported) => if is_reported {
+                            Either::A(Ok(()).into_future())
+                        } else {
+                            Either::B(
+                                block_store
+                                    .call(
+                                        "reportBlock",
+                                        encoded_block,
+                                        from,
+                                        Options::with(|opt| {
+                                            opt.gas = Some(REPORT_BLOCK_ESTIMATED_GAS.into())
+                                        }),
+                                    ).then(move |tx| {
+                                        info!("Block reported got tx: {:?}", tx);
+                                        Ok(())
+                                    }).map_err(|error: Error| {
+                                        error!("Error reporting block {:?}", error)
                                     }),
-                                ).then(move |tx| {
-                                    info!("Block reported got tx: {:?}", tx);
-                                    Ok(())
-                                }).map_err(|error: Error| {
-                                    error!("Error reporting block {:?}", error)
-                                }),
-                        )
-                    },
-                    Err(error) => {
-                        error!(
-                            "Error while checking if block is already reported{:?}",
-                            error
-                        );
-                        // Event loop spawn expects certain types. It doesn't support err types.
-                        Either::A(Ok(()).into_future())
+                            )
+                        },
+                        Err(error) => {
+                            error!(
+                                "Error while checking if block is already reported{:?}",
+                                error
+                            );
+                            // Event loop spawn expects certain types. It doesn't support err types.
+                            Either::A(Ok(()).into_future())
+                        }
                     }
-                }
-            });
-        event_loop.spawn(call_future);
+                })
+        });
+
+        &self.event_loop.spawn(call_future);
     }
 }

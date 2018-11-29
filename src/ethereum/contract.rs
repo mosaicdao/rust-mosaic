@@ -31,15 +31,15 @@ pub enum ContractType {
 }
 
 /// This struct stores map of contract type and  instances.
-pub struct ContractInstances {
+pub struct ContractFactory {
     contracts: HashMap<ContractType, Arc<Contract<Http>>>,
 }
 
-impl ContractInstances {
+impl ContractFactory {
     ///Creates instance of contract instances struct with empty map.
     pub fn new() -> Self {
         let contracts: HashMap<ContractType, Arc<Contract<Http>>> = HashMap::new();
-        ContractInstances { contracts }
+        ContractFactory { contracts }
     }
     /// This instantiate all the contracts and stores them into map.
     /// This throws error if initialization fails.
@@ -51,8 +51,8 @@ impl ContractInstances {
     /// * `config` - configuration of mosaic node.
     pub fn initialize(
         &mut self,
-        _origin: &Ethereum,
-        auxiliary: &Ethereum,
+        _origin: Arc<Ethereum>,
+        auxiliary: Arc<Ethereum>,
         config: &Config,
     ) -> Result<(), Error> {
         let contracts = &mut self.contracts;

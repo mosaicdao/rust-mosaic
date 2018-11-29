@@ -15,11 +15,12 @@
 //! This module is about different kinds of block and event reactors.
 //! To add new reactor, implement react trait and register it with block chain.
 
-use ethereum::contract::{ContractInstances, ContractType};
+use ethereum::contract::{ContractFactory, ContractType};
 use ethereum::types::block::Block;
 use ethereum::types::error::Error;
 use ethereum::Ethereum;
 use reactor::block_reporter::BlockReporter;
+use std::sync::Arc;
 use Config;
 
 mod block_reporter;
@@ -30,40 +31,71 @@ pub trait React {
     /// # Arguments
     ///
     /// * `block` - The observed block.
-    /// * `event_loop` - The reactor's event loop to handle the tasks spawned.
-    fn react(&self, block: &Block, event_loop: &tokio_core::reactor::Handle);
+    fn react(&self, block: &Block);
 }
 
-/// Register different kind of reactors to origin and auxiliary block chain.
+/// Instantiate reactors which will react on origin block generation.
 ///
 /// # Arguments
 ///
 /// * `origin` - A blockchain object that points to origin.
 /// * `auxiliary` - A blockchain object that points to auxiliary.
+/// * `contract_factory` - Contract instances factory.
 /// * `config` - A configuration to register reactors.
-pub fn register(
-    origin: &mut Ethereum,
-    auxiliary: &mut Ethereum,
-    contract_instances: &ContractInstances,
+/// * `event_loop` - A configuration to register reactors.
+pub fn origin_reactors(
+    _origin: Arc<Ethereum>,
+    auxiliary: Arc<Ethereum>,
+    contract_factory: &ContractFactory,
     config: &Config,
-) -> Result<(), Error> {
-    contract_instances
-        .get(&ContractType::AuxiliaryBlockStore)
-        .map(|contract| {
-            auxiliary.register_reactor(Box::new(BlockReporter::new(
-                contract,
-                config.auxiliary_validator_address(),
-            )))
-        })?;
+    event_loop: Box<tokio_core::reactor::Handle>,
+) -> Result<Vec<Box<React>>, Error> {
+    let mut origin_reactors: Vec<Box<React>> = Vec::new();
 
-    contract_instances
+    contract_factory
         .get(&ContractType::OriginBlockStore)
-        .map(|contract| {
-            origin.register_reactor(Box::new(BlockReporter::new(
+        .map(move |contract| {
+            let block_reporter = BlockReporter::new(
                 contract,
                 config.auxiliary_validator_address(),
-            )))
-        })?;
-    Ok(())
+                event_loop,
+                auxiliary,
+            );
+            origin_reactors.push(Box::new(block_reporter));
+            Ok(origin_reactors)
+        })?
 }
 
+/// Instantiate reactors which will react on auxiliary block generation.
+///
+/// # Arguments
+///
+/// * `origin` - A blockchain object that points to origin.
+/// * `auxiliary` - A blockchain object that points to auxiliary.
+/// * `contract_factory` - Contract instances factory.
+/// * `config` - A configuration to register reactors.
+/// * `event_loop` - A configuration to register reactors.
+pub fn auxiliary_reactors(
+    _origin: Arc<Ethereum>,
+    auxiliary: Arc<Ethereum>,
+    contract_factory: &ContractFactory,
+    config: &Config,
+    event_loop: Box<tokio_core::reactor::Handle>,
+) -> Result<Vec<Box<React>>, Error> {
+    let mut auxiliary_reactors: Vec<Box<React>> = Vec::new();
+
+    contract_factory
+        .get(&ContractType::AuxiliaryBlockStore)
+        .map({
+            move |contract| {
+                let block_reporter = BlockReporter::new(
+                    contract,
+                    config.auxiliary_validator_address(),
+                    event_loop,
+                    auxiliary,
+                );
+                auxiliary_reactors.push(Box::new(block_reporter));
+                Ok(auxiliary_reactors)
+            }
+        })?
+}

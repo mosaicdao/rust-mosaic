@@ -19,6 +19,7 @@
 
 #[macro_use]
 extern crate log;
+extern crate core;
 extern crate futures;
 extern crate rlp;
 extern crate rpassword;
@@ -27,14 +28,16 @@ extern crate tokio_core;
 extern crate web3;
 
 pub use config::Config;
-use ethereum::contract::ContractInstances;
+use ethereum::contract::ContractFactory;
 use ethereum::Ethereum;
+use observer::Observer;
 use std::error::Error;
 use std::sync::Arc;
 
 pub mod config;
 mod ethereum;
 mod observer;
+
 mod reactor;
 
 /// Runs a mosaic node with the given configuration.
@@ -46,29 +49,66 @@ mod reactor;
 pub fn run(config: &Config) -> Result<(), Box<Error>> {
     let mut event_loop =
         tokio_core::reactor::Core::new().expect("Could not initialize tokio event loop");
-    let mut origin = Ethereum::new(
+    let origin = Ethereum::new(
         config.origin_endpoint(),
         config.origin_validator_address(),
         config.origin_polling_interval(),
         Box::new(event_loop.handle()),
     );
-    let mut auxiliary = Ethereum::new(
+    let auxiliary = Ethereum::new(
         config.auxiliary_endpoint(),
         config.auxiliary_validator_address(),
         config.auxiliary_polling_interval(),
         Box::new(event_loop.handle()),
     );
-    let mut contract_instances = ContractInstances::new();
 
-    if let Err(err) = contract_instances.initialize(&origin, &auxiliary, config) {
+    let origin = Arc::new(origin);
+    let auxiliary = Arc::new(auxiliary);
+
+    let mut contract_factory = ContractFactory::new();
+
+    if let Err(err) =
+        contract_factory.initialize(Arc::clone(&origin), Arc::clone(&auxiliary), config)
+    {
         panic!("Error instancing contracts {:?}", err)
     };
 
-    if let Err(err) = reactor::register(&mut origin, &mut auxiliary, &contract_instances, config) {
-        panic!("Error registering reactors {:?}", err)
+    let origin_reactors = match reactor::origin_reactors(
+        Arc::clone(&origin),
+        Arc::clone(&auxiliary),
+        &contract_factory,
+        config,
+        Box::new(event_loop.handle()),
+    ) {
+        Ok(origin_reactors) => origin_reactors,
+        Err(error) => panic!("Error instancing origin reactors {:?}", error),
     };
 
-    observer::run(Arc::new(origin), Arc::new(auxiliary), &event_loop.handle());
+    let auxiliary_reactors = match reactor::auxiliary_reactors(
+        Arc::clone(&origin),
+        Arc::clone(&auxiliary),
+        &contract_factory,
+        config,
+        Box::new(event_loop.handle()),
+    ) {
+        Ok(auxiliary_reactors) => auxiliary_reactors,
+        Err(error) => panic!("Error instancing auxiliary reactors {:?}", error),
+    };
+
+    let origin_observer = Observer::new(
+        origin,
+        Arc::new(origin_reactors),
+        Box::new(event_loop.handle()),
+    );
+
+    let auxiliary_observer = Observer::new(
+        auxiliary,
+        Arc::new(auxiliary_reactors),
+        Box::new(event_loop.handle()),
+    );
+
+    origin_observer.run();
+    auxiliary_observer.run();
 
     loop {
         event_loop.turn(None);

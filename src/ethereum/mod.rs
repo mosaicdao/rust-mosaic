@@ -24,7 +24,6 @@ use web3::types::{Address, BlockId, BlockNumber, Bytes, FilterBuilder, Log, H160
 use web3::Web3;
 
 use ethereum::types::{Block, Error, ErrorKind, Event, Signature};
-use reactor::React;
 
 pub mod contract;
 pub mod types;
@@ -38,10 +37,6 @@ pub struct Ethereum {
     /// The polling interval defines the duration in between two calls to the node to poll for new
     /// blocks.
     polling_interval: Duration,
-    /// A handle to the event loop that runs mosaic.
-    event_loop: Box<tokio_core::reactor::Handle>,
-    /// List of block reactors. These are notified when any new block is generated.
-    reactors: Vec<Box<React>>,
 }
 
 trait IntoBlock {
@@ -57,7 +52,6 @@ impl Ethereum {
     /// * `endpoint` - The address of an ethereum node.
     /// * `validator` - The address of the validator to sign and send messages from.
     /// * `polling_interval` - The duration in between two calls to the node to poll for new blocks.
-    /// * `event_loop` - A handle to the event loop that runs mosaic.
     pub fn new(
         endpoint: &str,
         validator: H160,
@@ -78,8 +72,6 @@ impl Ethereum {
             validator,
             password,
             polling_interval,
-            event_loop,
-            reactors: Vec::new(),
         }
     }
 
@@ -236,7 +228,7 @@ impl Ethereum {
     /// # Panics
     ///
     /// Panics if it cannot unlock the account.
-    fn unlock_account(&self, duration: Option<u16>) -> impl Future<Item = bool, Error = Error> {
+    pub fn unlock_account(&self, duration: Option<u16>) -> impl Future<Item = bool, Error = Error> {
         self.web3
             .personal()
             .unlock_account(self.validator, &self.password, duration)
@@ -246,28 +238,6 @@ impl Ethereum {
                     format!("Was not able to unlock account: {}", error),
                 )
             })
-    }
-
-    /// Register a block reactor.
-    ///
-    /// # Arguments
-    ///
-    /// * `reactor` - Any object which implements reactor traits
-    ///
-    pub fn register_reactor(&mut self, reactor: Box<React>) {
-        self.reactors.push(reactor);
-    }
-
-    /// Notify all the block observers
-    ///
-    /// # Arguments
-    ///
-    /// * `block` - block to notify
-    ///
-    pub fn notify_reactors(&self, block: &Block) {
-        self.reactors
-            .iter()
-            .for_each(|reactor| reactor.react(block, &self.event_loop));
     }
 }
 
