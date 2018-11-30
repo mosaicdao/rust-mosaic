@@ -13,6 +13,7 @@
 // limitations under the License.
 
 //! This module is the implementation of block reporter reactor.
+//! It report blocks on block store contracts once blocks are observed.
 
 use futures::future::Either;
 use futures::future::IntoFuture;
@@ -65,7 +66,7 @@ impl BlockReporter {
 }
 
 impl React for BlockReporter {
-    /// Defines how different reactor will react on block observation.
+    /// Defines logic of block reporting on block store contracts once a new block is generated.
     ///
     /// # Arguments
     ///
@@ -79,7 +80,7 @@ impl React for BlockReporter {
         let block_chain = &self.block_chain;
         let from = self.from;
 
-        // Unlocking account with zero time interval, which unlocks account till node is up.
+        // Unlocking account with zero time interval, which unlocks account until node shuts down.
         let call_future = block_chain.unlock_account(Some(0)).then(move |_| {
             block_store
                 .query(
@@ -88,7 +89,7 @@ impl React for BlockReporter {
                     from,
                     Options::default(),
                     None,
-                ).then({
+                ).then(
                     move |result: Result<bool, web3::contract::Error>| match result {
                         Ok(is_reported) => if is_reported {
                             Either::A(Ok(()).into_future())
@@ -118,8 +119,8 @@ impl React for BlockReporter {
                             // Event loop spawn expects certain types. It doesn't support err types.
                             Either::A(Ok(()).into_future())
                         }
-                    }
-                })
+                    },
+                )
         });
 
         &self.event_loop.spawn(call_future);

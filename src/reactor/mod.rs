@@ -13,9 +13,11 @@
 // limitations under the License.
 
 //! This module is about different kinds of block and event reactors.
+//! A reactor is an action taken on block generation of a block chain.
 //! To add new reactor, implement react trait and register it with block chain.
+//! Reactors are expected to handle error internally.
 
-use ethereum::contract::{ContractFactory, ContractType};
+use ethereum::contract::{ContractRegistry, ContractType};
 use ethereum::types::block::Block;
 use ethereum::types::error::Error;
 use ethereum::Ethereum;
@@ -40,19 +42,19 @@ pub trait React {
 ///
 /// * `origin` - A blockchain object that points to origin.
 /// * `auxiliary` - A blockchain object that points to auxiliary.
-/// * `contract_factory` - Contract instances factory.
+/// * `contract_registry` - Contract instances registry.
 /// * `config` - A configuration to register reactors.
 /// * `event_loop` - A configuration to register reactors.
 pub fn origin_reactors(
     _origin: Arc<Ethereum>,
     auxiliary: Arc<Ethereum>,
-    contract_factory: &ContractFactory,
+    contract_registry: &ContractRegistry,
     config: &Config,
     event_loop: Box<tokio_core::reactor::Handle>,
 ) -> Result<Vec<Box<React>>, Error> {
     let mut origin_reactors: Vec<Box<React>> = Vec::new();
 
-    contract_factory
+    contract_registry
         .get(&ContractType::OriginBlockStore)
         .map(move |contract| {
             let block_reporter = BlockReporter::new(
@@ -72,19 +74,19 @@ pub fn origin_reactors(
 ///
 /// * `origin` - A blockchain object that points to origin.
 /// * `auxiliary` - A blockchain object that points to auxiliary.
-/// * `contract_factory` - Contract instances factory.
+/// * `contract_registry` - Contract instances registry.
 /// * `config` - A configuration to register reactors.
 /// * `event_loop` - A configuration to register reactors.
 pub fn auxiliary_reactors(
     _origin: Arc<Ethereum>,
     auxiliary: Arc<Ethereum>,
-    contract_factory: &ContractFactory,
+    contract_registry: &ContractRegistry,
     config: &Config,
     event_loop: Box<tokio_core::reactor::Handle>,
 ) -> Result<Vec<Box<React>>, Error> {
     let mut auxiliary_reactors: Vec<Box<React>> = Vec::new();
 
-    contract_factory
+    contract_registry
         .get(&ContractType::AuxiliaryBlockStore)
         .map({
             move |contract| {

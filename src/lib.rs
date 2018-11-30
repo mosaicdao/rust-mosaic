@@ -28,7 +28,7 @@ extern crate tokio_core;
 extern crate web3;
 
 pub use config::Config;
-use ethereum::contract::ContractFactory;
+use ethereum::contract::ContractRegistry;
 use ethereum::Ethereum;
 use observer::Observer;
 use std::error::Error;
@@ -65,35 +65,25 @@ pub fn run(config: &Config) -> Result<(), Box<Error>> {
     let origin = Arc::new(origin);
     let auxiliary = Arc::new(auxiliary);
 
-    let mut contract_factory = ContractFactory::new();
+    // This will panic if construction will fail.
+    let contract_registry =
+        ContractRegistry::new(Arc::clone(&origin), Arc::clone(&auxiliary), config).unwrap();
 
-    if let Err(err) =
-        contract_factory.initialize(Arc::clone(&origin), Arc::clone(&auxiliary), config)
-    {
-        panic!("Error instancing contracts {:?}", err)
-    };
-
-    let origin_reactors = match reactor::origin_reactors(
+    let origin_reactors = reactor::origin_reactors(
         Arc::clone(&origin),
         Arc::clone(&auxiliary),
-        &contract_factory,
+        &contract_registry,
         config,
         Box::new(event_loop.handle()),
-    ) {
-        Ok(origin_reactors) => origin_reactors,
-        Err(error) => panic!("Error instancing origin reactors {:?}", error),
-    };
+    ).unwrap();
 
-    let auxiliary_reactors = match reactor::auxiliary_reactors(
+    let auxiliary_reactors = reactor::auxiliary_reactors(
         Arc::clone(&origin),
         Arc::clone(&auxiliary),
-        &contract_factory,
+        &contract_registry,
         config,
         Box::new(event_loop.handle()),
-    ) {
-        Ok(auxiliary_reactors) => auxiliary_reactors,
-        Err(error) => panic!("Error instancing auxiliary reactors {:?}", error),
-    };
+    ).unwrap();
 
     let origin_observer = Observer::new(
         origin,

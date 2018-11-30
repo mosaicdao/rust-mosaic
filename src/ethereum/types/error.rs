@@ -35,6 +35,7 @@ impl Error {
 pub enum ErrorKind {
     InvalidBlock,
     NodeError,
+    ContractError,
 }
 
 impl fmt::Display for Error {
@@ -42,6 +43,7 @@ impl fmt::Display for Error {
         match self.kind {
             ErrorKind::InvalidBlock => write!(f, "Not a valid block!").unwrap(),
             ErrorKind::NodeError => write!(f, "Error on blockchain node!").unwrap(),
+            ErrorKind::ContractError => write!(f, "Error on Contract!").unwrap(),
         };
 
         write!(f, " Explanation: {}", self.explanation).unwrap();
