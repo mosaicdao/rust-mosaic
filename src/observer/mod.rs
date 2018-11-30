@@ -41,8 +41,8 @@ pub fn run(
     event_loop: &tokio_core::reactor::Handle,
     config: &Config,
 ) {
-    let origin_events = event::origin_event_handler(config);
-    let auxiliary_events = event::auxiliary_event_handler(config);
+    let origin_events = event::origin_event_registry(config);
+    let auxiliary_events = event::auxiliary_event_registry(config);
 
     let origin_stream = origin.stream_blocks(Arc::new(origin_events));
     let auxiliary_stream = auxiliary.stream_blocks(Arc::new(auxiliary_events));

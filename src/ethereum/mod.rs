@@ -16,7 +16,7 @@
 
 pub use self::types::{Block, Signature};
 use error::{Error, ErrorKind};
-use event::EventHandler;
+use event::EventRegistry;
 use futures::prelude::*;
 use rpassword;
 use std::sync::Arc;
@@ -93,10 +93,10 @@ impl Ethereum {
     ///
     /// # Arguments
     ///
-    /// * `event_handler` - A handler that converts raw logs from the web3 blocks into events.
+    /// * `event_registry` - A handler that converts raw logs from the web3 blocks into events.
     pub fn stream_blocks(
         &self,
-        event_handler: Arc<EventHandler>,
+        event_registry: Arc<EventRegistry>,
     ) -> impl Stream<Item = Block, Error = Error> {
         // Blocks filter is a future that returns a filter.
         let blocks_filter = self.web3.eth_filter().create_blocks_filter();
@@ -160,7 +160,7 @@ impl Ethereum {
                 .to_block(block_number)
                 .build();
 
-            let event_handler = Arc::clone(&event_handler);
+            let event_registry = Arc::clone(&event_registry);
             web3.eth()
                 .logs(log_filter)
                 .map_err(|error| {
@@ -170,7 +170,7 @@ impl Ethereum {
                     )
                 }).map(move |logs| {
                     for log in logs {
-                        match event_handler.log_into_event(&log) {
+                        match event_registry.log_into_event(&log) {
                             // We are not interested in the case where there is no error and
                             // Ok(None) returned. It simply means that the log did not match any
                             // registered event in the event handler.

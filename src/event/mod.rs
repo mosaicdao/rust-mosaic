@@ -60,8 +60,8 @@ trait EventFactory {
 /// # Arguments
 ///
 /// * `config` - The mosaic configuration.
-pub fn origin_event_handler(_config: &Config) -> EventHandler {
-    EventHandler::new()
+pub fn origin_event_registry(_config: &Config) -> EventRegistry {
+    EventRegistry::new()
 }
 
 /// Returns an event handler that you can use to convert `log_into_event` for logs on the auxiliary
@@ -70,8 +70,8 @@ pub fn origin_event_handler(_config: &Config) -> EventHandler {
 /// # Arguments
 ///
 /// * `config` - The mosaic configuration.
-pub fn auxiliary_event_handler(config: &Config) -> EventHandler {
-    let mut handler = EventHandler::new();
+pub fn auxiliary_event_registry(config: &Config) -> EventRegistry {
+    let mut handler = EventRegistry::new();
 
     // Registering on the origin block store.
     let origin_block_store_address = config
@@ -111,13 +111,13 @@ pub fn auxiliary_event_handler(config: &Config) -> EventHandler {
 }
 
 /// An event handler stores factories and converts logs into events if it has a matching factory.
-pub struct EventHandler {
+pub struct EventRegistry {
     /// Maps log's addresses to a map from log's topics to related factories.
     /// This means that in order for a factory to match a log, the address and the topic must match.
     factories: HashMap<Address, HashMap<H256, Box<EventFactory>>>,
 }
 
-impl EventHandler {
+impl EventRegistry {
     /// Convert a log into an event.
     /// Returns an `Ok(Some(Event))` if a matching factory was registered and converted the log
     /// successfully. Returns an `Ok(None)` if no matching factory was registered. Returns an `Err`
@@ -140,7 +140,7 @@ impl EventHandler {
 
     /// Initializes a new event handler.
     fn new() -> Self {
-        EventHandler {
+        EventRegistry {
             factories: HashMap::new(),
         }
     }
@@ -199,7 +199,7 @@ mod test {
                 .unwrap();
         let log = build_log(address, vec![factory.topic()], &[tokens]);
 
-        let mut handler = EventHandler::new();
+        let mut handler = EventRegistry::new();
         handler.register_event_factory(address, factory.topic(), Box::new(factory));
 
         let event = handler.log_into_event(&log);
@@ -230,7 +230,7 @@ mod test {
         let factory: BlockReportedFactory = Default::default();
         let log = build_log(other_address, vec![factory.topic()], &[]);
 
-        let mut handler = EventHandler::new();
+        let mut handler = EventRegistry::new();
         handler.register_event_factory(address, factory.topic(), Box::new(factory));
 
         let event = handler.log_into_event(&log);
@@ -253,7 +253,7 @@ mod test {
         let factory: BlockReportedFactory = Default::default();
         let log = build_log(address, vec![], &[]);
 
-        let mut handler = EventHandler::new();
+        let mut handler = EventRegistry::new();
         handler.register_event_factory(address, factory.topic(), Box::new(factory));
 
         let event = handler.log_into_event(&log);
@@ -279,7 +279,7 @@ mod test {
             .unwrap();
         let log = build_log(address, vec![wrong_topic], &[]);
 
-        let mut handler = EventHandler::new();
+        let mut handler = EventRegistry::new();
         handler.register_event_factory(address, factory.topic(), Box::new(factory));
 
         let event = handler.log_into_event(&log);
