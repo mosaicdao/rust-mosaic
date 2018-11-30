@@ -53,13 +53,13 @@ pub fn run(config: &Config) -> Result<(), Box<Error>> {
         config.origin_endpoint(),
         config.origin_validator_address(),
         config.origin_polling_interval(),
-        Box::new(event_loop.handle()),
+        event_loop.handle(),
     );
     let auxiliary = Ethereum::new(
         config.auxiliary_endpoint(),
         config.auxiliary_validator_address(),
         config.auxiliary_polling_interval(),
-        Box::new(event_loop.handle()),
+        event_loop.handle(),
     );
 
     let origin = Arc::new(origin);
@@ -75,21 +75,21 @@ pub fn run(config: &Config) -> Result<(), Box<Error>> {
         Arc::clone(&auxiliary),
         &contract_registry,
         config,
-        Box::new(event_loop.handle()),
-    ).expect("Error instantiating origin reactors.");;
+        event_loop.handle(),
+    ).expect("Error instantiating origin reactors.");
+    ;
 
     let auxiliary_reactors = reactor::auxiliary_reactors(
         Arc::clone(&origin),
         Arc::clone(&auxiliary),
         &contract_registry,
         config,
-        Box::new(event_loop.handle()),
-    ).expect("Error instantiating auxiliary reactors.");;
+        event_loop.handle(),
+    ).expect("Error instantiating auxiliary reactors.");
 
-    let origin_observer = Observer::new(origin, origin_reactors, Box::new(event_loop.handle()));
+    let origin_observer = Observer::new(origin, origin_reactors, event_loop.handle());
 
-    let auxiliary_observer =
-        Observer::new(auxiliary, auxiliary_reactors, Box::new(event_loop.handle()));
+    let auxiliary_observer = Observer::new(auxiliary, auxiliary_reactors, event_loop.handle());
 
     origin_observer.run();
     auxiliary_observer.run();

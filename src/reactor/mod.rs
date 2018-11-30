@@ -50,7 +50,7 @@ pub fn origin_reactors(
     auxiliary: Arc<Ethereum>,
     contract_registry: &ContractRegistry,
     config: &Config,
-    event_loop: Box<tokio_core::reactor::Handle>,
+    event_loop: tokio_core::reactor::Handle,
 ) -> Result<Vec<Box<React>>, Error> {
     let mut origin_reactors: Vec<Box<React>> = Vec::new();
 
@@ -82,7 +82,7 @@ pub fn auxiliary_reactors(
     auxiliary: Arc<Ethereum>,
     contract_registry: &ContractRegistry,
     config: &Config,
-    event_loop: Box<tokio_core::reactor::Handle>,
+    event_loop: tokio_core::reactor::Handle,
 ) -> Result<Vec<Box<React>>, Error> {
     let mut auxiliary_reactors: Vec<Box<React>> = Vec::new();
 

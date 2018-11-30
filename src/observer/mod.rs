@@ -25,7 +25,7 @@ pub struct Observer {
     block_chain: Arc<Ethereum>,
     /// List of block reactors. These are notified when any new block is generated.
     reactors: Arc<Vec<Box<React>>>,
-    event_loop: Box<tokio_core::reactor::Handle>,
+    event_loop: tokio_core::reactor::Handle,
 }
 
 impl Observer {
@@ -39,7 +39,7 @@ impl Observer {
     pub fn new(
         block_chain: Arc<Ethereum>,
         reactors: Vec<Box<React>>,
-        event_loop: Box<tokio_core::reactor::Handle>,
+        event_loop: tokio_core::reactor::Handle,
     ) -> Self {
         let reactors = Arc::new(reactors);
 

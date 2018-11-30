@@ -56,7 +56,7 @@ impl Ethereum {
         endpoint: &str,
         validator: H160,
         polling_interval: Duration,
-        event_loop: Box<tokio_core::reactor::Handle>,
+        event_loop: tokio_core::reactor::Handle,
     ) -> Self {
         let http = Http::with_event_loop(endpoint, &event_loop, 5)
             .expect("Could not initialize ethereum HTTP connection");

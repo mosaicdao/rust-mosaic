@@ -37,7 +37,7 @@ const REPORT_BLOCK_ESTIMATED_GAS: i32 = 3_000_000;
 pub struct BlockReporter {
     block_store: Arc<Contract<Http>>,
     from: Address,
-    event_loop: Box<tokio_core::reactor::Handle>,
+    event_loop: tokio_core::reactor::Handle,
     block_chain: Arc<Ethereum>,
 }
 
@@ -53,7 +53,7 @@ impl BlockReporter {
     pub fn new(
         block_store: Arc<Contract<Http>>,
         from: Address,
-        event_loop: Box<tokio_core::reactor::Handle>,
+        event_loop: tokio_core::reactor::Handle,
         block_chain: Arc<Ethereum>,
     ) -> Self {
         BlockReporter {
