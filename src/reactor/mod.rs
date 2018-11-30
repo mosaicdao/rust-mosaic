@@ -13,7 +13,7 @@
 // limitations under the License.
 
 //! This module is about different kinds of block and event reactors.
-//! A reactor is an action taken on block generation of a block chain.
+//! A reactor is a reaction defined on block generation.
 //! To add new reactor, implement react trait and register it with block chain.
 //! Reactors are expected to handle error internally.
 

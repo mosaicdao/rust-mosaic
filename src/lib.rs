@@ -67,7 +67,8 @@ pub fn run(config: &Config) -> Result<(), Box<Error>> {
 
     // This will panic if construction will fail.
     let contract_registry =
-        ContractRegistry::new(Arc::clone(&origin), Arc::clone(&auxiliary), config).unwrap();
+        ContractRegistry::new(Arc::clone(&origin), Arc::clone(&auxiliary), config)
+            .expect("Error instantiating contract registry:");
 
     let origin_reactors = reactor::origin_reactors(
         Arc::clone(&origin),
@@ -75,7 +76,7 @@ pub fn run(config: &Config) -> Result<(), Box<Error>> {
         &contract_registry,
         config,
         Box::new(event_loop.handle()),
-    ).unwrap();
+    ).expect("Error instantiating origin reactors.");;
 
     let auxiliary_reactors = reactor::auxiliary_reactors(
         Arc::clone(&origin),
@@ -83,19 +84,12 @@ pub fn run(config: &Config) -> Result<(), Box<Error>> {
         &contract_registry,
         config,
         Box::new(event_loop.handle()),
-    ).unwrap();
+    ).expect("Error instantiating auxiliary reactors.");;
 
-    let origin_observer = Observer::new(
-        origin,
-        Arc::new(origin_reactors),
-        Box::new(event_loop.handle()),
-    );
+    let origin_observer = Observer::new(origin, origin_reactors, Box::new(event_loop.handle()));
 
-    let auxiliary_observer = Observer::new(
-        auxiliary,
-        Arc::new(auxiliary_reactors),
-        Box::new(event_loop.handle()),
-    );
+    let auxiliary_observer =
+        Observer::new(auxiliary, auxiliary_reactors, Box::new(event_loop.handle()));
 
     origin_observer.run();
     auxiliary_observer.run();

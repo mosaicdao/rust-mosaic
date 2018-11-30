@@ -38,9 +38,11 @@ impl Observer {
     /// * `event_loop` - The reactor's event loop to handle the tasks spawned by this observer.
     pub fn new(
         block_chain: Arc<Ethereum>,
-        reactors: Arc<Vec<Box<React>>>,
+        reactors: Vec<Box<React>>,
         event_loop: Box<tokio_core::reactor::Handle>,
     ) -> Self {
+        let reactors = Arc::new(reactors);
+
         Observer {
             block_chain,
             reactors,

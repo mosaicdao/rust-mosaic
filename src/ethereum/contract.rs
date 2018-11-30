@@ -23,7 +23,7 @@ use web3::contract::Contract;
 use web3::transports::Http;
 use Config;
 
-/// This enum represents the type a contract.
+/// This enum represents the type of a contract.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum ContractType {
     OriginBlockStore,
@@ -36,7 +36,7 @@ pub struct ContractRegistry {
 }
 
 impl ContractRegistry {
-    ///Creates instance of contract instances struct with empty map.
+    /// Creates instance of contract instances struct with empty map.
     /// This instantiates all the contracts and stores them in a map.
     /// It returns an error if the initialization fails.
     ///
