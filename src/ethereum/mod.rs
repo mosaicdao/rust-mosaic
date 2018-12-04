@@ -20,7 +20,7 @@ use std::time::Duration;
 use web3::contract::Contract;
 use web3::transports::Http;
 use web3::types::Block as Web3Block;
-use web3::types::{Address, BlockId, BlockNumber, Bytes, FilterBuilder, Log, H160};
+use web3::types::{Address, BlockId, BlockNumber, Bytes, FilterBuilder, Log, H160, H256};
 use web3::Web3;
 
 use ethereum::types::{Block, Error, ErrorKind, Event, Signature};
@@ -275,7 +275,7 @@ impl<TX> IntoBlock for Web3Block<TX> {
                 }
             },
             parent_hash: self.parent_hash,
-            uncles_hash: self.parent_hash,
+            uncles_hash: self.uncles_hash,
             author: self.author,
             state_root: self.state_root,
             transactions_root: self.transactions_root,
@@ -295,7 +295,8 @@ impl<TX> IntoBlock for Web3Block<TX> {
             gas_used: self.gas_used,
             timestamp: self.timestamp,
             extra_data: self.extra_data.clone(),
-            mix_data: self.transactions_root,
+            //This information is not available in rust-web3 block.
+            mix_data: H256::from(0),
             nonce: self.difficulty,
             events: vec![],
         })
