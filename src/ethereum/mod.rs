@@ -14,19 +14,21 @@
 
 //! This module implements the connection to an Ethereum blockchain.
 
-use ethereum::types::{Block, Error, ErrorKind, Event, Signature};
 use futures::prelude::*;
 use rpassword;
 use std::time::Duration;
+use web3::contract::Contract;
 use web3::transports::Http;
 use web3::types::Block as Web3Block;
-use web3::types::{Address, BlockId, BlockNumber, Bytes, FilterBuilder, Log, H160};
+use web3::types::{Address, BlockId, BlockNumber, Bytes, FilterBuilder, Log, H160, H256};
 use web3::Web3;
 
-mod types;
+use ethereum::types::{Block, Error, ErrorKind, Event, Signature};
+
+pub mod contract;
+pub mod types;
 
 /// This struct stores a connection to an Ethereum node.
-#[derive(Clone)]
 pub struct Ethereum {
     web3: Web3<Http>,
     validator: H160,
@@ -35,8 +37,6 @@ pub struct Ethereum {
     /// The polling interval defines the duration in between two calls to the node to poll for new
     /// blocks.
     polling_interval: Duration,
-    /// A handle to the event loop that runs mosaic.
-    event_loop: Box<tokio_core::reactor::Handle>,
 }
 
 trait IntoBlock {
@@ -52,12 +52,11 @@ impl Ethereum {
     /// * `endpoint` - The address of an ethereum node.
     /// * `validator` - The address of the validator to sign and send messages from.
     /// * `polling_interval` - The duration in between two calls to the node to poll for new blocks.
-    /// * `event_loop` - A handle to the event loop that runs mosaic.
     pub fn new(
         endpoint: &str,
         validator: H160,
         polling_interval: Duration,
-        event_loop: Box<tokio_core::reactor::Handle>,
+        event_loop: tokio_core::reactor::Handle,
     ) -> Self {
         let http = Http::with_event_loop(endpoint, &event_loop, 5)
             .expect("Could not initialize ethereum HTTP connection");
@@ -73,7 +72,6 @@ impl Ethereum {
             validator,
             password,
             polling_interval,
-            event_loop,
         }
     }
 
@@ -197,6 +195,29 @@ impl Ethereum {
         })
     }
 
+    /// Create contract instance
+    ///
+    /// # Arguments
+    ///
+    /// * `contract_address` -  The address of contract.
+    /// * `abi` - ABI of contract.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `contract` instance.
+    pub fn contract_instance(
+        &self,
+        contract_address: Address,
+        abi: &[u8],
+    ) -> Result<Contract<Http>, Error> {
+        Contract::from_json(self.web3.eth(), contract_address, abi).map_err(|error| {
+            Error::new(
+                ErrorKind::NodeError,
+                format!("Was not able to instantiate contract: {}", error),
+            )
+        })
+    }
+
     /// Unlocks the validator account of this ethereum instance using the stored password.
     ///
     /// # Arguments
@@ -207,7 +228,7 @@ impl Ethereum {
     /// # Panics
     ///
     /// Panics if it cannot unlock the account.
-    fn unlock_account(&self, duration: Option<u16>) -> impl Future<Item = bool, Error = Error> {
+    pub fn unlock_account(&self, duration: Option<u16>) -> impl Future<Item = bool, Error = Error> {
         self.web3
             .personal()
             .unlock_account(self.validator, &self.password, duration)
@@ -254,20 +275,29 @@ impl<TX> IntoBlock for Web3Block<TX> {
                 }
             },
             parent_hash: self.parent_hash,
+            uncles_hash: self.uncles_hash,
+            author: self.author,
             state_root: self.state_root,
             transactions_root: self.transactions_root,
+            receipts_root: self.transactions_root,
+            logs_bloom: self.logs_bloom,
+            total_difficulty: self.total_difficulty,
             number: match self.number {
                 Some(number) => number,
                 None => {
                     return Err(Error::new(
                         ErrorKind::InvalidBlock,
                         "Block has no number".to_string(),
-                    ))
+                    ));
                 }
             },
-            gas_used: self.gas_used,
             gas_limit: self.gas_limit,
+            gas_used: self.gas_used,
             timestamp: self.timestamp,
+            extra_data: self.extra_data.clone(),
+            //This information is not available in rust-web3 block.
+            mix_data: H256::from(0),
+            nonce: self.difficulty,
             events: vec![],
         })
     }

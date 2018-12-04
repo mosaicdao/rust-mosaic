@@ -19,18 +19,26 @@
 
 #[macro_use]
 extern crate log;
+extern crate core;
 extern crate futures;
+extern crate rlp;
 extern crate rpassword;
+extern crate tiny_keccak;
 extern crate tokio_core;
 extern crate web3;
 
 pub use config::Config;
+use ethereum::contract::ContractRegistry;
 use ethereum::Ethereum;
+use observer::Observer;
 use std::error::Error;
+use std::sync::Arc;
 
 pub mod config;
 mod ethereum;
 mod observer;
+
+mod reactor;
 
 /// Runs a mosaic node with the given configuration.
 /// Prints all accounts of the origin blockchain to std out.
@@ -45,16 +53,46 @@ pub fn run(config: &Config) -> Result<(), Box<Error>> {
         config.origin_endpoint(),
         config.origin_validator_address(),
         config.origin_polling_interval(),
-        Box::new(event_loop.handle()),
+        event_loop.handle(),
     );
     let auxiliary = Ethereum::new(
         config.auxiliary_endpoint(),
         config.auxiliary_validator_address(),
         config.auxiliary_polling_interval(),
-        Box::new(event_loop.handle()),
+        event_loop.handle(),
     );
 
-    observer::run(&origin, &auxiliary, &event_loop.handle());
+    let origin = Arc::new(origin);
+    let auxiliary = Arc::new(auxiliary);
+
+    // This will panic if construction will fail.
+    let contract_registry =
+        ContractRegistry::new(Arc::clone(&origin), Arc::clone(&auxiliary), config)
+            .expect("Error instantiating contract registry:");
+
+    let origin_reactors = reactor::origin_reactors(
+        Arc::clone(&origin),
+        Arc::clone(&auxiliary),
+        &contract_registry,
+        config,
+        event_loop.handle(),
+    ).expect("Error instantiating origin reactors.");
+    ;
+
+    let auxiliary_reactors = reactor::auxiliary_reactors(
+        Arc::clone(&origin),
+        Arc::clone(&auxiliary),
+        &contract_registry,
+        config,
+        event_loop.handle(),
+    ).expect("Error instantiating auxiliary reactors.");
+
+    let origin_observer = Observer::new(origin, origin_reactors, event_loop.handle());
+
+    let auxiliary_observer = Observer::new(auxiliary, auxiliary_reactors, event_loop.handle());
+
+    origin_observer.run();
+    auxiliary_observer.run();
 
     loop {
         event_loop.turn(None);
