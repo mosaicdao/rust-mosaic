@@ -1,5 +1,5 @@
 # Using the official rust image as a builder stage
-FROM rust:1.28.0-jessie as builder
+FROM rust:1.31.1-stretch as builder
 
 # Copying the source and compiling it with cargo
 WORKDIR /usr/src/rust-mosaic
@@ -11,7 +11,7 @@ RUN cargo build --release
 # Based on debian, as the rust image is based on debian and libraries
 # are dynamically linked. We could use musl instead to use a smaller
 # base image, e.g. alpine, for distribution.
-FROM debian:jessie
+FROM debian:stretch
 
 # libssl-dev is a dependency of rust-mosaic.
 RUN apt-get update && \
