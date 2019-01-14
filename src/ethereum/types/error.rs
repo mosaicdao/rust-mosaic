@@ -35,11 +35,13 @@ impl Error {
 pub enum ErrorKind {
     InvalidBlock,
     NodeError,
+    ContractError,
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.kind {
+            ErrorKind::ContractError => write!(f, "Error on Contract!").unwrap(),
             ErrorKind::InvalidBlock => write!(f, "Not a valid block!").unwrap(),
             ErrorKind::NodeError => write!(f, "Error on blockchain node!").unwrap(),
         };
